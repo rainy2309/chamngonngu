@@ -12,12 +12,12 @@ export function Footer() {
             <p className="text-sm font-semibold">Kết nối bằng ngôn ngữ ký hiệu</p>
           </div>
         </div>
-        <p className="max-w-3xl text-sm leading-7">CHẠM ưu tiên học tập bằng hình ảnh, chữ viết rõ ràng và nội dung dễ tiếp cận. Dữ liệu ký hiệu minh họa trong bản demo cần được xác minh bởi nguồn chuyên môn.</p>
+        <p className="max-w-3xl text-sm leading-7">CHẠM ưu tiên học tập bằng hình ảnh, chữ viết rõ ràng và nội dung dễ tiếp cận. GIF/video ký hiệu trong bản demo là placeholder và cần được xác minh bởi nguồn chuyên môn.</p>
         <div className="flex flex-wrap gap-4 text-sm font-bold">
-          <Link href="/dictionary" className="text-blue-700 hover:text-blue-900">Từ điển</Link>
-          <Link href="/vocab" className="text-blue-700 hover:text-blue-900">Vocab</Link>
-          <Link href="/lessons" className="text-blue-700 hover:text-blue-900">Bài học</Link>
-          <Link href="/about" className="text-blue-700 hover:text-blue-900">Giới thiệu</Link>
+          <Link href="/tu-dien" className="text-blue-700 hover:text-blue-900">Từ điển</Link>
+          <Link href="/hoc-ky-hieu" className="text-blue-700 hover:text-blue-900">Học ký hiệu</Link>
+          <Link href="/giao-tiep" className="text-blue-700 hover:text-blue-900">Giao tiếp</Link>
+          <Link href="/ve-du-an" className="text-blue-700 hover:text-blue-900">Về dự án</Link>
         </div>
       </div>
     </footer>

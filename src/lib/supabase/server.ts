@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 
-const missingEnvMessage = "Thiếu biến môi trường Supabase. Vui lòng kiểm tra file .env.local.";
+const missingEnvMessage = "Thiếu biến môi trường Supabase. Vui lòng kiểm tra Environment Variables trên Vercel hoặc file .env.local khi chạy local.";
 
 export async function createClient() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;

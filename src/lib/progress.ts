@@ -178,6 +178,10 @@ export function saveBestQuizScore(score: number) {
   if (score > progress.bestQuizScore) {
     window.localStorage.setItem(keys.bestQuizScore, String(score));
   }
+  const chamScore = Number(window.localStorage.getItem("cham_best_quiz_score") ?? 0);
+  if (score > chamScore) {
+    window.localStorage.setItem("cham_best_quiz_score", String(score));
+  }
 }
 
 export function setWordLearned(wordId: string) {

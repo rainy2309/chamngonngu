@@ -6,8 +6,14 @@ import { LogOut, UserRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { createClient, hasSupabaseEnv } from "@/lib/supabase/client";
 
+type AuthUser = {
+  email: string | null;
+  name: string | null;
+};
+
 export function AuthNav() {
-  const [email, setEmail] = useState<string | null>(null);
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [message, setMessage] = useState("");
 
   useEffect(() => {
     if (!hasSupabaseEnv()) return;
@@ -15,9 +21,9 @@ export function AuthNav() {
 
     async function loadUser() {
       const {
-        data: { user },
+        data: { user: authUser },
       } = await supabase.auth.getUser();
-      setEmail(user?.email ?? null);
+      setUser(authUser ? { email: authUser.email ?? null, name: String(authUser.user_metadata.full_name ?? "") || null } : null);
     }
 
     void loadUser();
@@ -25,23 +31,34 @@ export function AuthNav() {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
-      setEmail(session?.user.email ?? null);
+      const authUser = session?.user;
+      setUser(authUser ? { email: authUser.email ?? null, name: String(authUser.user_metadata.full_name ?? "") || null } : null);
     });
 
     return () => subscription.unsubscribe();
   }, []);
 
   async function logout() {
-    const supabase = createClient();
-    await supabase.auth.signOut();
-    window.location.href = "/login";
+    setMessage("");
+    try {
+      const supabase = createClient();
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        setMessage("Không thể đăng xuất. Vui lòng thử lại.");
+        return;
+      }
+      window.location.href = "/dang-nhap";
+    } catch {
+      setMessage("Không thể đăng xuất. Vui lòng thử lại.");
+    }
   }
 
-  if (email) {
+  if (user) {
     return (
       <div className="flex flex-wrap items-center gap-2">
+        <span className="hidden max-w-40 truncate text-sm font-bold text-slate-600 xl:inline">{user.name || user.email}</span>
         <Button asChild variant="secondary" size="sm">
-          <Link href="/profile">
+          <Link href="/ho-so">
             <UserRound className="h-4 w-4" aria-hidden="true" />
             Hồ sơ
           </Link>
@@ -50,6 +67,7 @@ export function AuthNav() {
           <LogOut className="h-4 w-4" aria-hidden="true" />
           Đăng xuất
         </Button>
+        {message ? <span className="text-xs font-bold text-orange-700">{message}</span> : null}
       </div>
     );
   }
@@ -57,10 +75,10 @@ export function AuthNav() {
   return (
     <div className="flex flex-wrap items-center gap-2">
       <Button asChild variant="secondary" size="sm">
-        <Link href="/login">Đăng nhập</Link>
+        <Link href="/dang-nhap">Đăng nhập</Link>
       </Button>
       <Button asChild size="sm">
-        <Link href="/register">Đăng ký</Link>
+        <Link href="/dang-ky">Đăng ký</Link>
       </Button>
     </div>
   );

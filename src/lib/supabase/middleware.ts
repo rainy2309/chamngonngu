@@ -1,8 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 
-const protectedRoutes = ["/dashboard", "/flashcards", "/profile"];
-const authRoutes = ["/login", "/register"];
+const protectedRoutes = ["/dashboard", "/ho-so", "/profile"];
+const authRoutes = ["/dang-nhap", "/dang-ky", "/login", "/register"];
 
 function isRoute(pathname: string, routes: string[]) {
   return routes.some((route) => pathname === route || pathname.startsWith(`${route}/`));
@@ -16,7 +16,7 @@ export async function updateSession(request: NextRequest) {
   if (!supabaseUrl || !supabasePublishableKey) {
     if (isRoute(request.nextUrl.pathname, protectedRoutes)) {
       const loginUrl = request.nextUrl.clone();
-      loginUrl.pathname = "/login";
+      loginUrl.pathname = "/dang-nhap";
       loginUrl.searchParams.set("message", "missing-env");
       return NextResponse.redirect(loginUrl);
     }
@@ -42,7 +42,7 @@ export async function updateSession(request: NextRequest) {
 
   if (!user && isRoute(request.nextUrl.pathname, protectedRoutes)) {
     const loginUrl = request.nextUrl.clone();
-    loginUrl.pathname = "/login";
+    loginUrl.pathname = "/dang-nhap";
     loginUrl.searchParams.set("message", "protected");
     return NextResponse.redirect(loginUrl);
   }

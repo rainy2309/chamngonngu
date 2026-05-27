@@ -81,14 +81,15 @@ export async function saveQuizAttempt(category: string, score: number, totalQues
 }
 
 export async function getBestQuizScore() {
+  const localScore = Number(window.localStorage.getItem("cham_best_quiz_score") ?? 0);
   const userId = await getUserId();
-  if (!userId) return Number(window.localStorage.getItem("silentBridge.bestQuizScore") ?? 0);
+  if (!userId) return localScore;
 
   const supabase = createClient();
   const { data, error } = await supabase.from("quiz_attempts").select("score").eq("user_id", userId).order("score", { ascending: false }).limit(1).maybeSingle();
 
-  if (error) throw new Error("Không thể tải dữ liệu học tập.");
-  return data?.score ?? 0;
+  if (error) return localScore;
+  return Math.max(data?.score ?? 0, localScore);
 }
 
 export async function getQuizHistory() {
@@ -98,6 +99,6 @@ export async function getQuizHistory() {
   const supabase = createClient();
   const { data, error } = await supabase.from("quiz_attempts").select("id,category,score,total_questions,created_at").eq("user_id", userId).order("created_at", { ascending: false });
 
-  if (error) throw new Error("Không thể tải dữ liệu học tập.");
+  if (error) return [];
   return data ?? [];
 }

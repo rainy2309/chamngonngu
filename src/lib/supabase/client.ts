@@ -2,7 +2,7 @@
 
 import { createBrowserClient } from "@supabase/ssr";
 
-const missingEnvMessage = "Thiếu biến môi trường Supabase. Vui lòng kiểm tra file .env.local.";
+export const missingEnvMessage = "Thiếu biến môi trường Supabase. Vui lòng kiểm tra Environment Variables trên Vercel hoặc file .env.local khi chạy local.";
 
 export function createClient() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;

@@ -2,17 +2,18 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BookOpen, ClipboardCheck, Home, Info, Library, MessageCircle, Search } from "lucide-react";
+import { BookOpen, Home, Info, LayoutDashboard, MessageCircle, Search, Users } from "lucide-react";
 import { AuthNav } from "@/components/auth/AuthNav";
 import { ChamLogo } from "@/components/common/ChamLogo";
 
 const links = [
-  { href: "/dictionary", label: "Từ điển", icon: Search },
-  { href: "/vocab", label: "Vocab", icon: Library },
-  { href: "/lessons", label: "Bài học", icon: BookOpen },
-  { href: "/quiz", label: "Quiz", icon: ClipboardCheck },
-  { href: "/community", label: "Cộng đồng", icon: MessageCircle },
-  { href: "/about", label: "Giới thiệu", icon: Info },
+  { href: "/", label: "Trang chủ", icon: Home },
+  { href: "/hoc-ky-hieu", label: "Học ký hiệu", icon: BookOpen },
+  { href: "/tu-dien", label: "Từ điển", icon: Search },
+  { href: "/giao-tiep", label: "Giao tiếp", icon: MessageCircle },
+  { href: "/cong-dong", label: "Cộng đồng", icon: Users },
+  { href: "/ve-du-an", label: "Về dự án", icon: Info },
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
 ];
 
 export function Navbar() {
@@ -30,10 +31,6 @@ export function Navbar() {
         </Link>
 
         <div className="hidden items-center gap-1 lg:flex">
-          <Link href="/" className={`inline-flex items-center gap-2 border-b-2 px-3 py-2 text-sm font-black transition ${pathname === "/" ? "border-blue-600 text-blue-700" : "border-transparent text-slate-600 hover:text-blue-700"}`}>
-            <Home className="h-4 w-4" aria-hidden="true" />
-            Trang chủ
-          </Link>
           {links.map((link) => {
             const active = pathname === link.href || pathname.startsWith(`${link.href}/`);
             return (

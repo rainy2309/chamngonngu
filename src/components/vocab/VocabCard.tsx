@@ -1,12 +1,13 @@
 "use client";
 
-import { Bookmark, Hand, PlayCircle } from "lucide-react";
+import { Bookmark, CheckCircle2, Hand, PlayCircle } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import type { VocabularyItem } from "@/types/vocabulary";
 
-const favoriteKey = "cham.favoriteWords";
+const favoriteKey = "cham_favorite_signs";
+const learnedKey = "cham_learned_signs";
 
 function readFavorites() {
   if (typeof window === "undefined") return [];
@@ -17,11 +18,22 @@ function readFavorites() {
   }
 }
 
+function readLearned() {
+  if (typeof window === "undefined") return [];
+  try {
+    return JSON.parse(window.localStorage.getItem(learnedKey) ?? "[]") as string[];
+  } catch {
+    return [];
+  }
+}
+
 export function VocabCard({ item, compact = false }: { item: VocabularyItem; compact?: boolean }) {
   const [favorite, setFavorite] = useState(false);
+  const [learned, setLearned] = useState(false);
 
   useEffect(() => {
     setFavorite(readFavorites().includes(item.id));
+    setLearned(readLearned().includes(item.id));
   }, [item.id]);
 
   function toggleFavorite() {
@@ -29,6 +41,13 @@ export function VocabCard({ item, compact = false }: { item: VocabularyItem; com
     const next = favorites.includes(item.id) ? favorites.filter((id) => id !== item.id) : [...favorites, item.id];
     window.localStorage.setItem(favoriteKey, JSON.stringify(next));
     setFavorite(next.includes(item.id));
+  }
+
+  function markLearned() {
+    const learnedItems = readLearned();
+    const next = Array.from(new Set([...learnedItems, item.id]));
+    window.localStorage.setItem(learnedKey, JSON.stringify(next));
+    setLearned(true);
   }
 
   return (
@@ -59,7 +78,13 @@ export function VocabCard({ item, compact = false }: { item: VocabularyItem; com
         <p className="text-sm leading-6">{item.signVideoPlaceholder}</p>
       </div>
       {!compact ? (
-        <Button variant="secondary" className="mt-4 w-full rounded-full">Xem chi tiết</Button>
+        <div className="mt-4 grid gap-2 sm:grid-cols-2">
+          <Button variant="secondary" className="rounded-full">Xem ký hiệu</Button>
+          <Button variant={learned ? "success" : "outline"} className="rounded-full" onClick={markLearned}>
+            <CheckCircle2 className="h-5 w-5" />
+            {learned ? "Đã học" : "Đã học"}
+          </Button>
+        </div>
       ) : null}
     </article>
   );
