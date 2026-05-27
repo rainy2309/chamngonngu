@@ -5,7 +5,7 @@ const missingEnvMessage = "Thiếu biến môi trường Supabase. Vui lòng ki�
 
 export async function createClient() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabasePublishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+  const supabasePublishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   if (!supabaseUrl || !supabasePublishableKey) {
     throw new Error(missingEnvMessage);
@@ -24,7 +24,7 @@ export async function createClient() {
             cookieStore.set(name, value, options);
           });
         } catch {
-          // Server Components cannot always write cookies; middleware handles session refresh.
+          // Middleware refreshes auth cookies for request/response flows.
         }
       },
     },

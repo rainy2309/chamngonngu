@@ -18,37 +18,19 @@ const roles: { value: Role; label: string }[] = [
 ];
 
 function normalizeRole(value: string): Role {
-  if (value === "supporter" || value === "teacher" || value === "learner") {
-    return value;
-  }
-
+  if (value === "supporter" || value === "teacher" || value === "learner") return value;
   const normalized = value.trim().toLowerCase();
-  if (normalized.includes("hỗ trợ") || normalized.includes("ho tro") || normalized.includes("support")) {
-    return "supporter";
-  }
-  if (normalized.includes("giáo viên") || normalized.includes("giao vien") || normalized.includes("chuyên môn") || normalized.includes("teacher")) {
-    return "teacher";
-  }
-
+  if (normalized.includes("hỗ trợ") || normalized.includes("ho tro") || normalized.includes("support")) return "supporter";
+  if (normalized.includes("giáo viên") || normalized.includes("giao vien") || normalized.includes("chuyên môn") || normalized.includes("teacher")) return "teacher";
   return "learner";
 }
 
 function getSignupErrorMessage(message?: string) {
   const lowerMessage = message?.toLowerCase() ?? "";
-
-  if (lowerMessage.includes("already registered") || lowerMessage.includes("user already registered") || lowerMessage.includes("already exists")) {
-    return "Email này đã được đăng ký. Vui lòng đăng nhập hoặc dùng email khác.";
-  }
-  if (lowerMessage.includes("password")) {
-    return "Mật khẩu chưa hợp lệ. Vui lòng dùng mật khẩu có ít nhất 6 ký tự.";
-  }
-  if (lowerMessage.includes("email")) {
-    return "Email chưa hợp lệ hoặc chưa được Supabase chấp nhận.";
-  }
-  if (lowerMessage.includes("database") || lowerMessage.includes("role") || lowerMessage.includes("constraint")) {
-    return "Không thể tạo hồ sơ người dùng. Vui lòng kiểm tra giá trị vai trò và cấu hình Supabase.";
-  }
-
+  if (lowerMessage.includes("already registered") || lowerMessage.includes("already exists")) return "Email này đã được đăng ký. Vui lòng đăng nhập hoặc dùng email khác.";
+  if (lowerMessage.includes("password")) return "Mật khẩu chưa hợp lệ. Vui lòng dùng mật khẩu có ít nhất 6 ký tự.";
+  if (lowerMessage.includes("email")) return "Email chưa hợp lệ hoặc chưa được Supabase chấp nhận.";
+  if (lowerMessage.includes("database") || lowerMessage.includes("role") || lowerMessage.includes("constraint")) return "Không thể tạo hồ sơ người dùng. Vui lòng kiểm tra giá trị vai trò và cấu hình Supabase.";
   return message ? `Không thể tạo tài khoản: ${message}` : "Không thể tạo tài khoản. Vui lòng thử lại.";
 }
 
@@ -74,7 +56,6 @@ export default function RegisterPage() {
         setMessage("Thiếu biến môi trường Supabase. Vui lòng kiểm tra file .env.local.");
       }
     }
-
     void checkSession();
   }, [router]);
 
@@ -86,14 +67,12 @@ export default function RegisterPage() {
       setMessage("Mật khẩu cần có ít nhất 6 ký tự.");
       return;
     }
-
     if (password !== confirmPassword) {
       setMessage("Mật khẩu xác nhận chưa khớp.");
       return;
     }
 
     setLoading(true);
-
     try {
       const supabase = createClient();
       const safeRole = normalizeRole(role);
@@ -102,10 +81,7 @@ export default function RegisterPage() {
         password,
         options: {
           emailRedirectTo: `${window.location.origin}/auth/callback`,
-          data: {
-            full_name: fullName,
-            role: safeRole,
-          },
+          data: { full_name: fullName, role: safeRole },
         },
       });
 
@@ -114,13 +90,11 @@ export default function RegisterPage() {
         setMessage(getSignupErrorMessage(error.message));
         return;
       }
-
       if (data.session) {
         router.replace("/dashboard");
         router.refresh();
         return;
       }
-
       setMessage("Đăng ký thành công. Vui lòng kiểm tra email để xác nhận tài khoản.");
     } catch (error) {
       console.error("Signup error:", error);
@@ -131,13 +105,11 @@ export default function RegisterPage() {
   }
 
   return (
-    <main className="mx-auto grid w-full max-w-xl flex-1 place-items-center px-4 py-10 sm:px-6 lg:px-8">
-      <Card className="w-full">
+    <main className="grid flex-1 place-items-center bg-gradient-to-b from-blue-50 to-white px-4 py-10 sm:px-6 lg:px-8">
+      <Card className="w-full max-w-xl rounded-[2rem] border-blue-100 shadow-xl shadow-blue-100/60">
         <CardHeader>
-          <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700">
-            <UserPlus aria-hidden="true" />
-          </div>
-          <CardTitle className="text-3xl">Đăng ký</CardTitle>
+          <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700"><UserPlus aria-hidden="true" /></div>
+          <CardTitle className="text-3xl">Tạo tài khoản CHẠM</CardTitle>
           <p className="text-slate-600">Tạo tài khoản để lưu tiến độ học tập theo từng người dùng.</p>
         </CardHeader>
         <CardContent>
@@ -153,10 +125,8 @@ export default function RegisterPage() {
               </select>
             </label>
             {message ? <p className="rounded-2xl bg-blue-50 p-3 font-semibold text-blue-900">{message}</p> : null}
-            <Button type="submit" disabled={loading}>{loading ? "Đang tạo tài khoản..." : "Đăng ký"}</Button>
-            <p className="text-center text-slate-600">
-              Đã có tài khoản? <Link href="/login" className="font-bold text-blue-700 hover:text-blue-900">Đăng nhập</Link>
-            </p>
+            <Button type="submit" disabled={loading} className="rounded-full">{loading ? "Đang tạo tài khoản..." : "Đăng ký"}</Button>
+            <p className="text-center text-slate-600">Đã có tài khoản? <Link href="/login" className="font-bold text-blue-700 hover:text-blue-900">Đăng nhập</Link></p>
           </form>
         </CardContent>
       </Card>

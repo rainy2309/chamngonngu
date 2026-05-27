@@ -60,30 +60,22 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="mx-auto grid w-full max-w-xl flex-1 place-items-center px-4 py-10 sm:px-6 lg:px-8">
-      <Card className="w-full">
+    <main className="grid flex-1 place-items-center bg-gradient-to-b from-blue-50 to-white px-4 py-10 sm:px-6 lg:px-8">
+      <Card className="w-full max-w-xl rounded-[2rem] border-blue-100 shadow-xl shadow-blue-100/60">
         <CardHeader>
           <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50 text-blue-700">
             <LogIn aria-hidden="true" />
           </div>
-          <CardTitle className="text-3xl">Đăng nhập</CardTitle>
+          <CardTitle className="text-3xl">Đăng nhập CHẠM</CardTitle>
           <p className="text-slate-600">Tiếp tục học và lưu tiến độ của riêng bạn.</p>
         </CardHeader>
         <CardContent>
           <form className="grid gap-4" onSubmit={onSubmit}>
-            <label className="grid gap-2">
-              <span className="font-bold text-slate-800">Email</span>
-              <Input type="email" value={email} onChange={(event) => setEmail(event.target.value)} required autoComplete="email" />
-            </label>
-            <label className="grid gap-2">
-              <span className="font-bold text-slate-800">Mật khẩu</span>
-              <Input type="password" value={password} onChange={(event) => setPassword(event.target.value)} required autoComplete="current-password" />
-            </label>
+            <label className="grid gap-2"><span className="font-bold text-slate-800">Email</span><Input type="email" value={email} onChange={(event) => setEmail(event.target.value)} required autoComplete="email" /></label>
+            <label className="grid gap-2"><span className="font-bold text-slate-800">Mật khẩu</span><Input type="password" value={password} onChange={(event) => setPassword(event.target.value)} required autoComplete="current-password" /></label>
             {message ? <p className="rounded-2xl bg-orange-50 p-3 font-semibold text-orange-900">{message}</p> : null}
-            <Button type="submit" disabled={loading}>{loading ? "Đang đăng nhập..." : "Đăng nhập"}</Button>
-            <p className="text-center text-slate-600">
-              Chưa có tài khoản? <Link href="/register" className="font-bold text-blue-700 hover:text-blue-900">Đăng ký</Link>
-            </p>
+            <Button type="submit" disabled={loading} className="rounded-full">{loading ? "Đang đăng nhập..." : "Đăng nhập"}</Button>
+            <p className="text-center text-slate-600">Chưa có tài khoản? <Link href="/register" className="font-bold text-blue-700 hover:text-blue-900">Đăng ký</Link></p>
           </form>
         </CardContent>
       </Card>

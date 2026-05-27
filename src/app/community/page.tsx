@@ -1,42 +1,36 @@
-"use client";
+import { Eye, HandHeart, HeartHandshake, Lightbulb, MessageCircle, Sparkles } from "lucide-react";
+import { SectionCard } from "@/components/common/SectionCard";
 
-import * as Dialog from "@radix-ui/react-dialog";
-import { useState } from "react";
-import { X } from "lucide-react";
-import { ArticleCard } from "@/components/cards/ArticleCard";
-import { Button } from "@/components/ui/button";
-import { articles } from "@/data/articleData";
-
-type Article = (typeof articles)[number];
+const articles = [
+  { title: "Giao tiếp bằng sự tôn trọng", icon: MessageCircle, text: "Hãy hỏi người đối diện muốn trao đổi bằng cách nào: chữ viết, cử chỉ, khẩu hình, ký hiệu hay công cụ hỗ trợ." },
+  { title: "Ánh sáng và tầm nhìn", icon: Eye, text: "Giữ khuôn mặt và bàn tay trong tầm nhìn rõ ràng để cuộc trò chuyện dễ theo dõi hơn." },
+  { title: "Không vội vàng", icon: HeartHandshake, text: "Một nhịp giao tiếp chậm, rõ ý và kiên nhẫn giúp cả hai bên hiểu nhau tốt hơn." },
+  { title: "Hình ảnh rất hữu ích", icon: Lightbulb, text: "Sơ đồ, biểu tượng, ghi chú và ví dụ ngắn có thể hỗ trợ việc học và trao đổi hằng ngày." },
+  { title: "Học vài ký hiệu cơ bản", icon: HandHeart, text: "Xin chào, cảm ơn, xin lỗi, giúp và không hiểu là những từ có thể bắt đầu học trước." },
+  { title: "Thử thách nhỏ", icon: Sparkles, text: "Thử giao tiếp 10 phút không dùng giọng nói để cảm nhận vai trò của hình ảnh và chữ viết." },
+];
 
 export default function CommunityPage() {
-  const [selected, setSelected] = useState<Article | null>(null);
-
   return (
-    <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-10 sm:px-6 lg:px-8">
-      <div className="mb-8">
-        <h1 className="text-4xl font-black text-slate-950">Góc kiến thức cộng đồng</h1>
-        <p className="mt-3 max-w-3xl text-lg leading-8 text-slate-600">Các bài viết ngắn, tích cực và tôn trọng về giao tiếp với người điếc và khiếm thính.</p>
-      </div>
-      <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-        {articles.map((article) => <ArticleCard key={article.id} {...article} onOpen={() => setSelected(article)} />)}
-      </div>
-      <Dialog.Root open={Boolean(selected)} onOpenChange={(open) => !open && setSelected(null)}>
-        <Dialog.Portal>
-          <Dialog.Overlay className="fixed inset-0 z-50 bg-slate-950/50" />
-          <Dialog.Content className="fixed left-1/2 top-1/2 z-50 max-h-[88vh] w-[calc(100%-2rem)] max-w-2xl -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-2xl bg-white p-6 shadow-xl focus:outline-none focus:ring-4 focus:ring-blue-200">
-            {selected ? (
-              <div className="grid gap-4">
-                <div className="flex items-start justify-between gap-4">
-                  <Dialog.Title className="text-3xl font-black text-slate-950">{selected.title}</Dialog.Title>
-                  <Dialog.Close asChild><Button variant="ghost" size="sm" aria-label="Đóng bài viết"><X className="h-5 w-5" /></Button></Dialog.Close>
-                </div>
-                {selected.content.map((paragraph) => <p key={paragraph} className="rounded-2xl bg-slate-50 p-4 text-lg leading-8 text-slate-700">{paragraph}</p>)}
+    <main className="flex-1 bg-gradient-to-b from-blue-50 to-white px-4 py-10 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl">
+        <div className="mb-10">
+          <p className="font-black uppercase tracking-[0.25em] text-blue-500">Cộng đồng</p>
+          <h1 className="mt-3 text-4xl font-black text-slate-950 sm:text-5xl">Hiểu để chạm gần hơn</h1>
+          <p className="mt-4 max-w-3xl text-lg leading-8 text-slate-600">Góc kiến thức CHẠM chia sẻ các gợi ý giao tiếp tích cực với cộng đồng người điếc và khiếm thính.</p>
+        </div>
+        <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+          {articles.map((article) => (
+            <SectionCard key={article.title}>
+              <div className="mb-5 grid h-14 w-14 place-items-center rounded-3xl bg-blue-50 text-blue-600">
+                <article.icon aria-hidden="true" />
               </div>
-            ) : null}
-          </Dialog.Content>
-        </Dialog.Portal>
-      </Dialog.Root>
+              <h2 className="text-2xl font-black text-slate-950">{article.title}</h2>
+              <p className="mt-3 leading-8 text-slate-600">{article.text}</p>
+            </SectionCard>
+          ))}
+        </div>
+      </div>
     </main>
   );
 }

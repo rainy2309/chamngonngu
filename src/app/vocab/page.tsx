@@ -1,14 +1,19 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { SearchBar } from "@/components/common/SearchBar";
 import { SectionCard } from "@/components/common/SectionCard";
 import { VocabGrid } from "@/components/vocab/VocabGrid";
 import { categories, vocabularyData } from "@/data/vocabularyData";
 
-export default function DictionaryPage() {
+export default function VocabPage() {
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("Tất cả");
+
+  useEffect(() => {
+    const initialCategory = new URLSearchParams(window.location.search).get("category");
+    if (initialCategory) setCategory(initialCategory);
+  }, []);
 
   const filtered = useMemo(() => {
     const normalized = query.trim().toLowerCase();
@@ -22,10 +27,10 @@ export default function DictionaryPage() {
   return (
     <main className="flex-1 bg-gradient-to-b from-blue-50 to-white px-4 py-10 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-7xl">
-        <div className="mb-8 text-center">
-          <p className="font-black uppercase tracking-[0.25em] text-blue-500">Từ điển CHẠM</p>
-          <h1 className="mt-3 text-4xl font-black text-slate-950 sm:text-5xl">Tra cứu ký hiệu minh họa</h1>
-          <p className="mx-auto mt-4 max-w-3xl text-lg leading-8 text-slate-600">Tìm từ, nghĩa, ví dụ và chủ đề có thể học qua thẻ trực quan. Không có dữ liệu ký hiệu chính thức trong bản demo.</p>
+        <div className="mb-8">
+          <p className="font-black uppercase tracking-[0.25em] text-blue-500">Vocab</p>
+          <h1 className="mt-3 text-4xl font-black text-slate-950 sm:text-5xl">Kho từ vựng CHẠM</h1>
+          <p className="mt-4 max-w-3xl text-lg leading-8 text-slate-600">Khám phá các thẻ từ vựng theo chủ đề, lưu từ yêu thích và ôn lại bằng quiz.</p>
         </div>
         <SectionCard>
           <SearchBar value={query} onChange={setQuery} />
@@ -36,8 +41,9 @@ export default function DictionaryPage() {
               </button>
             ))}
           </div>
-          <p className="my-6 font-bold text-slate-600">Tìm thấy {filtered.length} nội dung</p>
-          <VocabGrid items={filtered} />
+          <div className="mt-7">
+            <VocabGrid items={filtered} />
+          </div>
         </SectionCard>
       </div>
     </main>
