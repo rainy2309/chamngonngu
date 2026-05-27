@@ -28,6 +28,12 @@ export function Footer() {
           <Link href="/#ve-cham" className="whitespace-nowrap text-blue-700 hover:text-blue-900">
             Về CHẠM
           </Link>
+          <Link href="/chinh-sach-bao-mat" className="whitespace-nowrap text-blue-700 hover:text-blue-900">
+            Chính sách quyền riêng tư
+          </Link>
+          <Link href="/dieu-khoan-su-dung" className="whitespace-nowrap text-blue-700 hover:text-blue-900">
+            Điều khoản sử dụng
+          </Link>
         </div>
       </div>
     </footer>

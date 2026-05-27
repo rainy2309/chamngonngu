@@ -23,7 +23,7 @@ export function AuthNav() {
       const {
         data: { user: authUser },
       } = await supabase.auth.getUser();
-      setUser(authUser ? { email: authUser.email ?? null, name: String(authUser.user_metadata.full_name ?? "") || null } : null);
+      setUser(authUser ? { email: authUser.email ?? null, name: String(authUser.user_metadata.full_name ?? authUser.user_metadata.name ?? "") || null } : null);
     }
 
     void loadUser();
@@ -32,7 +32,7 @@ export function AuthNav() {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       const authUser = session?.user;
-      setUser(authUser ? { email: authUser.email ?? null, name: String(authUser.user_metadata.full_name ?? "") || null } : null);
+      setUser(authUser ? { email: authUser.email ?? null, name: String(authUser.user_metadata.full_name ?? authUser.user_metadata.name ?? "") || null } : null);
     });
 
     return () => subscription.unsubscribe();

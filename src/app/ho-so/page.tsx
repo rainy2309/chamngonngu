@@ -23,6 +23,16 @@ const continuingCourses = [
   { title: "Cảm xúc", href: "/khoa-hoc/ghep-tu" },
 ];
 
+function getInitials(name: string, email: string) {
+  const source = name || email || "CHẠM";
+  return source
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join("");
+}
+
 function RecentList({ items, emptyText }: { items: StoredLearningItem[]; emptyText: string }) {
   if (!items.length) {
     return <p className="rounded-3xl bg-slate-50 p-4 text-sm font-semibold text-slate-500">{emptyText}</p>;
@@ -45,6 +55,7 @@ export default function ProfilePage() {
   const [email, setEmail] = useState("");
   const [fullName, setFullName] = useState("");
   const [role, setRole] = useState("learner");
+  const [avatarUrl, setAvatarUrl] = useState("");
   const [joinedAt, setJoinedAt] = useState("");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(true);
@@ -75,29 +86,54 @@ export default function ProfilePage() {
         } = await supabase.auth.getUser();
 
         if (!user) {
-          setMessage("Bạn cần đăng nhập để sử dụng tính năng này.");
+          setMessage("Phiên đăng nhập không hợp lệ. Vui lòng đăng nhập lại.");
           return;
         }
 
+        const metadataName = String(user.user_metadata.full_name ?? user.user_metadata.name ?? "");
+        const metadataRole = String(user.user_metadata.role ?? "learner");
+        const metadataAvatar = String(user.user_metadata.avatar_url ?? user.user_metadata.picture ?? "");
+
         setUserId(user.id);
         setEmail(user.email ?? "");
-        setFullName(String(user.user_metadata.full_name ?? ""));
-        setRole(String(user.user_metadata.role ?? "learner"));
+        setFullName(metadataName);
+        setRole(metadataRole || "learner");
+        setAvatarUrl(metadataAvatar);
         setJoinedAt(user.created_at ?? "");
 
         const supabaseBestScore = await getBestQuizScore();
         setBestScore((current) => Math.max(current, supabaseBestScore));
 
-        const { data, error } = await supabase.from("profiles").select("full_name,role,created_at").eq("id", user.id).maybeSingle();
+        const { data, error } = await supabase.from("profiles").select("full_name,role,avatar_url,created_at").eq("id", user.id).maybeSingle();
         if (error) {
           setProfileTableReady(false);
           setMessage("Chưa kết nối bảng hồ sơ. Thông tin đang hiển thị từ tài khoản đăng nhập.");
           return;
         }
 
-        setFullName(data?.full_name ?? String(user.user_metadata.full_name ?? ""));
-        setRole(data?.role ?? String(user.user_metadata.role ?? "learner"));
+        const profileName = data?.full_name || metadataName;
+        const profileRole = data?.role || metadataRole || "learner";
+        const profileAvatar = data?.avatar_url || metadataAvatar;
+
+        setFullName(profileName);
+        setRole(profileRole);
+        setAvatarUrl(profileAvatar);
         setJoinedAt(data?.created_at ?? user.created_at ?? "");
+
+        const shouldUpsert = !data?.full_name || !data?.avatar_url || !data?.role;
+        if (shouldUpsert) {
+          const { error: upsertError } = await supabase.from("profiles").upsert({
+            id: user.id,
+            full_name: profileName,
+            role: profileRole,
+            avatar_url: profileAvatar,
+            updated_at: new Date().toISOString(),
+          });
+          if (upsertError) {
+            console.error("Profile upsert error:", upsertError);
+            setProfileTableReady(false);
+          }
+        }
       } catch {
         setMessage("Chưa kết nối bảng hồ sơ. Thông tin đang hiển thị từ tài khoản đăng nhập.");
         setProfileTableReady(false);
@@ -119,10 +155,10 @@ export default function ProfilePage() {
     try {
       const supabase = createClient();
       if (profileTableReady) {
-        const { error } = await supabase.from("profiles").upsert({ id: userId, full_name: fullName, role, updated_at: new Date().toISOString() });
+        const { error } = await supabase.from("profiles").upsert({ id: userId, full_name: fullName, role, avatar_url: avatarUrl, updated_at: new Date().toISOString() });
         if (error) throw error;
       }
-      await supabase.auth.updateUser({ data: { full_name: fullName, role } });
+      await supabase.auth.updateUser({ data: { full_name: fullName, role, avatar_url: avatarUrl } });
       setMessage("Đã cập nhật hồ sơ.");
     } catch {
       setMessage("Không thể lưu hồ sơ. Vui lòng thử lại.");
@@ -215,11 +251,18 @@ export default function ProfilePage() {
 
         <Card className="rounded-[1.5rem] border-blue-100 shadow-xl shadow-blue-100/60 sm:rounded-[2rem]">
           <CardHeader>
-            <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50 text-blue-700">
-              <UserRound aria-hidden="true" />
+            <div className="mb-4 flex items-center gap-4">
+              {avatarUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={avatarUrl} alt={`Ảnh đại diện của ${fullName || email}`} className="h-16 w-16 rounded-2xl object-cover ring-4 ring-blue-50" referrerPolicy="no-referrer" />
+              ) : (
+                <div className="grid h-16 w-16 place-items-center rounded-2xl bg-blue-100 text-xl font-black text-blue-700">{getInitials(fullName, email)}</div>
+              )}
+              <div>
+                <CardTitle className="text-2xl sm:text-3xl">Thông tin tài khoản</CardTitle>
+                <p className="break-all text-slate-600">{email}</p>
+              </div>
             </div>
-            <CardTitle className="text-2xl sm:text-3xl">Thông tin tài khoản</CardTitle>
-            <p className="text-slate-600">Quản lý thông tin cơ bản dùng cho CHẠM.</p>
           </CardHeader>
           <CardContent>
             {loading ? (
