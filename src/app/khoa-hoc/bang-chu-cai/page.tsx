@@ -1,15 +1,25 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Bookmark, Check, CheckCircle2, ChevronLeft, ChevronRight, PlayCircle, Loader2 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { useEffect, useState } from "react";
+import * as Dialog from "@radix-ui/react-dialog";
+import { Bookmark, Check, CheckCircle2, ImageIcon, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { alphabetSignData, type AlphabetSignItem } from "@/data/alphabetSignData";
 import { learningStorageKeys, saveLearningItem } from "@/lib/localLearning";
-import { createClient, hasSupabaseEnv } from "@/lib/supabase/client";
 
 const learnedAlphabetKey = "cham_learned_alphabet";
-const learnedSignsKey = "cham_learned_signs";
 const favoriteSignsKey = "cham_favorite_signs";
+
+const compactInstructions = [
+  "Quan sát hình minh họa.",
+  "Giữ tay trong khung nhìn rõ.",
+  "Thực hiện chậm và lặp lại 3-5 lần.",
+];
+
+const compactTips = [
+  "Không thực hiện quá nhanh khi mới học.",
+  "Nội dung demo cần được xác minh bởi nguồn chuyên môn.",
+];
 
 function readStringArray(key: string) {
   if (typeof window === "undefined") return [];
@@ -45,279 +55,207 @@ function saveViewedCourse() {
   saveLearningItem(learningStorageKeys.viewedLessons, { id: "bang-chu-cai", label: "Ký hiệu bảng chữ cái" });
 }
 
-type AlphabetItem = {
-  id: string;
-  letter_key: string;
-  letter: string;
-  title: string;
-  description: string | null;
-  video_url: string | null;
-  gif_url: string | null;
-  thumbnail_url: string | null;
-  instructions: string[];
-  tips: string[];
-  status: string;
-  display_order: number;
-};
-
-// Media renderer that supports real video/gif URLs or falls back to placeholder
-function MediaRenderer({ item }: { item: AlphabetItem }) {
-  if (item.video_url) {
-    return (
-      <div className="relative aspect-video w-full overflow-hidden rounded-[1.75rem] border border-blue-100 bg-black shadow-lg">
-        <video
-          src={item.video_url}
-          className="h-full w-full object-contain"
-          controls
-          autoPlay
-          loop
-          muted
-          playsInline
-        />
-      </div>
-    );
-  }
-
-  if (item.gif_url) {
-    return (
-      <div className="relative aspect-video w-full overflow-hidden rounded-[1.75rem] border border-blue-100 bg-slate-100 shadow-lg flex items-center justify-center">
-        <img
-          src={item.gif_url}
-          alt={item.title}
-          className="h-full w-full object-contain"
-        />
-      </div>
-    );
-  }
+function ImageBox({ item, compact = false }: { item: AlphabetSignItem; compact?: boolean }) {
+  const [failed, setFailed] = useState(false);
+  const canShowImage = Boolean(item.image && !failed);
 
   return (
-    <div className="aspect-video w-full rounded-[1.75rem] border border-dashed border-blue-200 bg-blue-50 p-5 text-center text-blue-900 shadow-inner">
-      <div className="flex h-full flex-col items-center justify-center gap-3">
-        <PlayCircle className="h-10 w-10 text-blue-600" aria-hidden="true" />
-        <p className="text-base font-black sm:text-lg">GIF/Video minh họa chữ {item.letter}</p>
-        <p className="max-w-md text-xs font-semibold leading-6 text-slate-500 sm:text-sm">Nội dung minh họa sẽ được nhóm bổ sung hoặc xác minh ở giai đoạn sau.</p>
-      </div>
+    <div
+      className={`relative flex w-full items-center justify-center overflow-hidden rounded-xl border border-dashed border-blue-200 bg-blue-50 text-blue-800 ${
+        compact ? "h-[54px] min-[390px]:h-16 sm:h-[68px]" : "aspect-[4/3] min-h-32"
+      }`}
+    >
+      {canShowImage ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={item.image} alt={`Minh họa ${item.label}`} className="h-full w-full object-contain p-1.5" onError={() => setFailed(true)} />
+      ) : (
+        <div className="grid place-items-center gap-1 text-center">
+          <ImageIcon className={compact ? "h-5 w-5" : "h-9 w-9"} aria-hidden="true" />
+          <span className="text-[11px] font-black sm:text-xs">Minh họa</span>
+        </div>
+      )}
     </div>
   );
 }
 
+function BoardCell({ item, learned, onClick }: { item: AlphabetSignItem; learned: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={`Xem ${item.title.toLowerCase()}`}
+      className="group min-h-[105px] rounded-[14px] border border-blue-100 bg-white p-1.5 text-center shadow-sm shadow-blue-100/40 transition hover:-translate-y-0.5 hover:border-blue-300 hover:bg-blue-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100 min-[390px]:min-h-[112px] sm:min-h-[122px] sm:p-2"
+    >
+      <div className="relative">
+        <ImageBox item={item} compact />
+        {learned ? (
+          <span className="absolute -right-1 -top-1 grid h-5 w-5 place-items-center rounded-full bg-emerald-500 text-white ring-2 ring-white" aria-label="Đã học">
+            <Check className="h-3 w-3" aria-hidden="true" />
+          </span>
+        ) : null}
+      </div>
+      <span className="mt-1.5 block truncate text-xs font-black leading-5 text-slate-900 group-hover:text-blue-700 sm:text-sm">{item.label}</span>
+      <span className="block text-[10px] font-bold text-slate-500">{item.type === "letter" ? "Chữ cái" : "Dấu"}</span>
+    </button>
+  );
+}
+
+function DetailModal({
+  item,
+  learned,
+  favorite,
+  onOpenChange,
+  onLearned,
+  onFavorite,
+}: {
+  item: AlphabetSignItem | null;
+  learned: boolean;
+  favorite: boolean;
+  onOpenChange: (open: boolean) => void;
+  onLearned: () => void;
+  onFavorite: () => void;
+}) {
+  return (
+    <Dialog.Root open={Boolean(item)} onOpenChange={onOpenChange}>
+      <Dialog.Portal>
+        <Dialog.Overlay className="fixed inset-0 z-50 bg-slate-950/45 backdrop-blur-sm" />
+        <Dialog.Content className="scrollbar-hide fixed left-1/2 top-1/2 z-50 max-h-[88vh] w-[calc(100vw-24px)] max-w-[900px] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-[1.5rem] bg-white p-4 shadow-2xl focus:outline-none focus:ring-4 focus:ring-blue-100 sm:p-5 lg:max-h-[80vh]">
+          {item ? (
+            <div className="grid gap-3">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-4xl font-black leading-none text-blue-700 sm:text-5xl">{item.label}</p>
+                  <Dialog.Title className="mt-2 text-xl font-black text-slate-950 sm:text-2xl">{item.title}</Dialog.Title>
+                </div>
+                <Dialog.Close asChild>
+                  <button type="button" className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-slate-100 text-slate-700 hover:bg-blue-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100" aria-label="Đóng">
+                    <X className="h-5 w-5" aria-hidden="true" />
+                  </button>
+                </Dialog.Close>
+              </div>
+
+              <div className="grid gap-4 lg:grid-cols-[0.88fr_1.12fr] lg:items-start">
+                <ImageBox item={item} />
+
+                <div className="grid gap-3">
+                  <section>
+                    <h3 className="text-base font-black text-slate-950">Mô tả ngắn</h3>
+                    <p className="mt-1.5 rounded-2xl bg-slate-50 p-3 text-sm font-semibold leading-6 text-slate-700">{item.shortDescription}</p>
+                  </section>
+
+                  <section>
+                    <h3 className="text-base font-black text-slate-950">Cách thực hiện</h3>
+                    <ul className="mt-1.5 grid gap-1.5">
+                      {compactInstructions.map((instruction) => (
+                        <li key={instruction} className="rounded-2xl bg-blue-50 px-3 py-2 text-sm font-semibold leading-6 text-blue-900">
+                          {instruction}
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+
+                  <section>
+                    <h3 className="text-base font-black text-slate-950">Lưu ý khi học</h3>
+                    <ul className="mt-1.5 grid gap-1.5">
+                      {compactTips.map((tip) => (
+                        <li key={tip} className="rounded-2xl bg-orange-50 px-3 py-2 text-sm font-semibold leading-6 text-orange-900">
+                          {tip}
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+                </div>
+              </div>
+
+              <div className="grid gap-2 border-t border-blue-100 pt-3 sm:grid-cols-3">
+                <Button className="w-full rounded-full" onClick={onLearned}>
+                  <CheckCircle2 className="h-5 w-5" aria-hidden="true" />
+                  {learned ? "Đã học" : "Đánh dấu đã học"}
+                </Button>
+                <Button variant="secondary" className="w-full rounded-full" onClick={onFavorite}>
+                  <Bookmark className={favorite ? "h-5 w-5 fill-blue-700" : "h-5 w-5"} aria-hidden="true" />
+                  {favorite ? "Đã lưu yêu thích" : "Lưu yêu thích"}
+                </Button>
+                <Dialog.Close asChild>
+                  <Button variant="outline" className="w-full rounded-full">
+                    Đóng
+                  </Button>
+                </Dialog.Close>
+              </div>
+            </div>
+          ) : null}
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
+  );
+}
+
 export default function AlphabetCoursePage() {
-  const [alphabetList, setAlphabetList] = useState<AlphabetItem[]>([]);
-  const [selectedId, setSelectedId] = useState("");
+  const [selectedItem, setSelectedItem] = useState<AlphabetSignItem | null>(null);
   const [learnedIds, setLearnedIds] = useState<string[]>([]);
   const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
-  const [loading, setLoading] = useState(true);
-  const detailRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     setLearnedIds(readStringArray(learnedAlphabetKey));
     setFavoriteIds(readStringArray(favoriteSignsKey));
     saveViewedCourse();
-
-    async function loadAlphabet() {
-      if (hasSupabaseEnv()) {
-        const supabase = createClient();
-        const { data, error } = await supabase
-          .from("alphabet_media")
-          .select("*")
-          .eq("status", "published")
-          .order("display_order", { ascending: true })
-          .order("letter", { ascending: true });
-
-        if (data && data.length > 0) {
-          setAlphabetList(data);
-          setSelectedId(data[0].id);
-        }
-      }
-      setLoading(false);
-    }
-    void loadAlphabet();
   }, []);
-
-  const selectedIndex = useMemo(() => alphabetList.findIndex((item) => item.id === selectedId), [selectedId, alphabetList]);
-  const selectedItem = useMemo(() => alphabetList[selectedIndex] ?? alphabetList[0], [selectedIndex, alphabetList]);
-  const totalLetters = alphabetList.length;
-
-  function selectLetter(id: string, shouldScroll = true) {
-    setSelectedId(id);
-    if (shouldScroll) {
-      window.setTimeout(() => {
-        detailRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-      }, 50);
-    }
-  }
 
   function markLearned() {
     if (!selectedItem) return;
-    const next = saveUniqueString(learnedAlphabetKey, selectedItem.id);
-    saveUniqueString(learnedSignsKey, `alphabet-${selectedItem.id}`);
-    setLearnedIds(next);
+    setLearnedIds(saveUniqueString(learnedAlphabetKey, selectedItem.id));
   }
 
   function saveFavorite() {
     if (!selectedItem) return;
-    const next = saveUniqueString(favoriteSignsKey, selectedItem.id);
-    setFavoriteIds(next);
+    setFavoriteIds(saveUniqueString(favoriteSignsKey, selectedItem.id));
   }
 
-  function goToIndex(index: number) {
-    const next = alphabetList[index];
-    if (next) selectLetter(next.id);
-  }
-
-  if (loading) {
-    return (
-      <main className="flex-1 bg-gradient-to-b from-blue-50 via-white to-white px-4 py-20 text-center">
-        <div className="flex flex-col items-center justify-center gap-3">
-          <Loader2 className="h-10 w-10 animate-spin text-blue-600" />
-          <p className="font-semibold text-slate-500">Đang tải dữ liệu bảng chữ cái...</p>
-        </div>
-      </main>
-    );
-  }
-
-  if (!alphabetList.length) {
-    return (
-      <main className="flex-1 bg-gradient-to-b from-blue-50 via-white to-white px-4 py-8 sm:px-6 sm:py-12 lg:px-8">
-        <div className="mx-auto max-w-4xl rounded-[2rem] border border-blue-100 bg-white p-12 text-center font-bold text-slate-700 shadow-xl shadow-blue-100/60 space-y-4">
-          <p className="text-lg text-slate-800">Chưa có dữ liệu bảng chữ cái trong cơ sở dữ liệu.</p>
-          <p className="text-sm font-medium text-slate-500">Vui lòng truy cập trang Quản trị và seed dữ liệu hoặc thêm thủ công.</p>
-          <div className="pt-4">
-            <a href="/admin/seed" className="rounded-full bg-blue-600 px-6 py-2.5 text-sm font-bold text-white shadow-lg hover:bg-blue-700 transition">
-              Đi đến Seed Dữ liệu
-            </a>
-          </div>
-        </div>
-      </main>
-    );
-  }
-
-  const selectedIsLearned = learnedIds.includes(selectedItem?.id);
-  const selectedIsFavorite = favoriteIds.includes(selectedItem?.id);
+  const totalItems = alphabetSignData.length;
+  const selectedIsLearned = selectedItem ? learnedIds.includes(selectedItem.id) : false;
+  const selectedIsFavorite = selectedItem ? favoriteIds.includes(selectedItem.id) : false;
 
   return (
-    <main className="flex-1 bg-gradient-to-b from-blue-50 via-white to-white px-4 py-8 sm:px-6 sm:py-12 lg:px-8">
-      <section className="mx-auto max-w-7xl">
-        <div className="grid gap-5 rounded-[2rem] border border-blue-100 bg-white p-5 shadow-xl shadow-blue-100/60 sm:p-7 lg:grid-cols-[1.4fr_auto] lg:items-center">
-          <div>
-            <p className="text-sm font-black uppercase text-blue-600">Khóa học</p>
-            <h1 className="mt-2 text-3xl font-black text-slate-950 sm:text-4xl lg:text-5xl">Ký hiệu bảng chữ cái</h1>
-            <p className="mt-4 max-w-3xl text-sm font-semibold leading-7 text-slate-600 sm:text-lg sm:leading-8">Chọn một chữ cái để xem minh họa ký hiệu, cách thực hiện và ghi chú học tập.</p>
-          </div>
-          <div className="rounded-[1.5rem] bg-blue-50 px-5 py-4 text-blue-900">
-            <p className="text-sm font-black uppercase">Tiến độ</p>
-            <p className="mt-1 text-2xl font-black">Đã học: {learnedIds.length} / {totalLetters} chữ</p>
-          </div>
-        </div>
+    <main className="flex-1 bg-gradient-to-b from-blue-50 via-white to-white px-4 pb-8 pt-3 sm:px-6 sm:pt-4 lg:px-8">
+      <section className="mx-auto grid max-w-[1360px] gap-4 lg:grid-cols-[280px_1fr] lg:items-start xl:grid-cols-[300px_1fr]">
+        <aside className="rounded-2xl border border-blue-100 bg-white p-4 shadow-lg shadow-blue-100/50 lg:sticky lg:top-28">
+          <p className="text-xs font-black uppercase text-blue-600">KHÓA HỌC</p>
+          <h1 className="mt-1 text-2xl font-black leading-tight text-slate-950">Ký hiệu bảng chữ cái</h1>
+          <p className="mt-2 text-sm font-semibold leading-6 text-slate-600">Chọn một chữ cái hoặc dấu để xem minh họa ký hiệu.</p>
 
-        <div className="mt-6 rounded-[2rem] border border-blue-100 bg-white p-4 shadow-lg shadow-blue-100/50 sm:p-5">
-          <div className="flex gap-2 overflow-x-auto pb-2 sm:flex-wrap sm:overflow-visible sm:pb-0" aria-label="Chọn chữ cái">
-            {alphabetList.map((item) => {
-              const active = item.id === selectedItem?.id;
-              const learned = learnedIds.includes(item.id);
+          <div className="mt-4 rounded-2xl bg-blue-50 px-4 py-3 text-blue-900">
+            <p className="text-xs font-black uppercase">Tiến độ</p>
+            <p className="mt-1 text-xl font-black">Đã học: {learnedIds.length} / {totalItems} mục</p>
+          </div>
 
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  aria-label={`Xem ký hiệu chữ ${item.letter}`}
-                  aria-pressed={active}
-                  onClick={() => selectLetter(item.id)}
-                  className={`relative flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-full border px-4 text-base font-black transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100 ${
-                    active ? "border-blue-600 bg-blue-600 text-white shadow-lg shadow-blue-100" : "border-blue-200 bg-white text-blue-700 hover:bg-blue-50"
-                  }`}
-                >
-                  {item.letter}
-                  {learned ? (
-                    <span className="absolute -right-1 -top-1 grid h-5 w-5 place-items-center rounded-full bg-emerald-500 text-white ring-2 ring-white" aria-label="Đã học">
-                      <Check className="h-3 w-3" aria-hidden="true" />
-                    </span>
-                  ) : null}
-                </button>
-              );
-            })}
+          <p className="mt-4 rounded-2xl bg-slate-50 p-3 text-sm font-semibold leading-6 text-slate-600">Mỗi ô gồm chữ/dấu và minh họa ký hiệu. Nhấn vào ô để xem chi tiết.</p>
+        </aside>
+
+        <div className="rounded-2xl border border-blue-100 bg-white p-3 shadow-lg shadow-blue-100/40 sm:p-4">
+          <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
+            <div>
+              <h2 className="text-xl font-black text-slate-950 sm:text-2xl">Bảng chữ cái và dấu</h2>
+              <p className="mt-1 text-xs font-semibold text-slate-600 sm:text-sm">Nhấn vào từng ô để mở phần học chi tiết.</p>
+            </div>
+            <p className="rounded-full bg-blue-50 px-3 py-1.5 text-xs font-black text-blue-800 sm:text-sm">{totalItems} mục học</p>
+          </div>
+
+          <div className="grid grid-cols-3 gap-2 min-[390px]:grid-cols-4 sm:grid-cols-5 md:grid-cols-6 xl:grid-cols-8">
+            {alphabetSignData.map((item) => (
+              <BoardCell key={item.id} item={item} learned={learnedIds.includes(item.id)} onClick={() => setSelectedItem(item)} />
+            ))}
           </div>
         </div>
-
-        {selectedItem && (
-          <div ref={detailRef} className="scroll-mt-28">
-            <section className="mt-6 rounded-[2rem] border border-blue-100 bg-white p-5 shadow-xl shadow-blue-100/60 sm:p-7">
-              <div className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr] lg:items-start">
-                <div>
-                  <div className="mb-4 flex items-center justify-between gap-4">
-                    <div>
-                      <p className="text-7xl font-black leading-none text-blue-700 sm:text-8xl">{selectedItem.letter}</p>
-                      <h2 className="mt-3 text-2xl font-black text-slate-950 sm:text-3xl">{selectedItem.title}</h2>
-                    </div>
-                    {selectedIsLearned ? <CheckCircle2 className="h-9 w-9 shrink-0 text-emerald-600" aria-label="Đã học" /> : null}
-                  </div>
-                  <MediaRenderer item={selectedItem} />
-                </div>
-
-                <div className="grid gap-5">
-                  <div className="flex flex-wrap gap-2">
-                    <Badge>Bảng chữ cái</Badge>
-                    <Badge className="bg-emerald-50 text-emerald-800 ring-emerald-100">Cơ bản</Badge>
-                    {selectedIsFavorite ? <Badge className="bg-orange-50 text-orange-800 ring-orange-100">Đã lưu yêu thích</Badge> : null}
-                  </div>
-
-                  {selectedItem.description && (
-                    <section>
-                      <h3 className="text-xl font-black text-slate-950">Mô tả ngắn</h3>
-                      <p className="mt-2 rounded-2xl bg-slate-50 p-4 text-sm font-semibold leading-7 text-slate-700 sm:text-base">{selectedItem.description}</p>
-                    </section>
-                  )}
-
-                  {selectedItem.instructions && selectedItem.instructions.length > 0 && (
-                    <section>
-                      <h3 className="text-xl font-black text-slate-950">Cách thực hiện</h3>
-                      <ul className="mt-3 grid gap-2">
-                        {selectedItem.instructions.map((instruction, idx) => (
-                          <li key={idx} className="rounded-2xl bg-blue-50 p-3 text-sm font-semibold leading-6 text-blue-900 sm:text-base">
-                            {instruction}
-                          </li>
-                        ))}
-                      </ul>
-                    </section>
-                  )}
-
-                  {selectedItem.tips && selectedItem.tips.length > 0 && (
-                    <section>
-                      <h3 className="text-xl font-black text-slate-950">Lưu ý khi học</h3>
-                      <ul className="mt-3 grid gap-2">
-                        {selectedItem.tips.map((tip, idx) => (
-                          <li key={idx} className="rounded-2xl bg-orange-50 p-3 text-sm font-semibold leading-6 text-orange-900 sm:text-base">
-                            {tip}
-                          </li>
-                        ))}
-                      </ul>
-                    </section>
-                  )}
-
-                  <div className="grid gap-2 sm:grid-cols-2">
-                    <Button className="w-full rounded-full" onClick={markLearned}>
-                      <CheckCircle2 className="h-5 w-5" aria-hidden="true" />
-                      Đánh dấu đã học
-                    </Button>
-                    <Button variant="secondary" className="w-full rounded-full" onClick={saveFavorite}>
-                      <Bookmark className={selectedIsFavorite ? "h-5 w-5 fill-blue-700" : "h-5 w-5"} aria-hidden="true" />
-                      Lưu yêu thích
-                    </Button>
-                    <Button variant="outline" className="w-full rounded-full" disabled={selectedIndex <= 0} onClick={() => goToIndex(selectedIndex - 1)}>
-                      <ChevronLeft className="h-5 w-5" aria-hidden="true" />
-                      Chữ trước
-                    </Button>
-                    <Button variant="outline" className="w-full rounded-full" disabled={selectedIndex >= totalLetters - 1} onClick={() => goToIndex(selectedIndex + 1)}>
-                      Chữ tiếp theo
-                      <ChevronRight className="h-5 w-5" aria-hidden="true" />
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            </section>
-          </div>
-        )}
       </section>
+
+      <DetailModal
+        item={selectedItem}
+        learned={selectedIsLearned}
+        favorite={selectedIsFavorite}
+        onOpenChange={(open) => !open && setSelectedItem(null)}
+        onLearned={markLearned}
+        onFavorite={saveFavorite}
+      />
     </main>
   );
 }
