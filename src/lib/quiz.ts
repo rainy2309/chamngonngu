@@ -1,23 +1,22 @@
-"use client";
-
-import { vocabularyData } from "@/data/vocabularyData";
 import { createClient, hasSupabaseEnv } from "@/lib/supabase/client";
 import { saveBestQuizScore } from "@/lib/progress";
 import type { QuizMode, QuizQuestion } from "@/types/quiz";
+import type { VocabularyItem } from "@/types/vocabulary";
 
 function shuffle<T>(items: T[]) {
   return [...items].sort(() => Math.random() - 0.5);
 }
 
-export function createQuizQuestions(category: string, count: number): QuizQuestion[] {
-  const pool = category === "Tất cả" ? vocabularyData : vocabularyData.filter((item) => item.category === category);
-  const selected = shuffle(pool).slice(0, count);
+export function createQuizQuestions(category: string, count: number, pool: VocabularyItem[]): QuizQuestion[] {
+  if (!pool || pool.length === 0) return [];
+  const filteredPool = category === "Tất cả" ? pool : pool.filter((item) => item.category === category);
+  const selected = shuffle(filteredPool).slice(0, count);
   const modes: QuizMode[] = ["image-to-word", "word-to-meaning", "word-to-category"];
 
   return selected.map((item, index) => {
     const mode = modes[index % modes.length];
-    const distractors = shuffle(vocabularyData.filter((word) => word.id !== item.id));
-    const categoryOptions = shuffle([...new Set(vocabularyData.map((word) => word.category).filter((value) => value !== item.category))]).slice(0, 3);
+    const distractors = shuffle(pool.filter((word) => word.id !== item.id));
+    const categoryOptions = shuffle([...new Set(pool.map((word) => word.category).filter((value) => value !== item.category))]).slice(0, 3);
 
     if (mode === "word-to-meaning") {
       return {

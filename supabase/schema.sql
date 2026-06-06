@@ -35,9 +35,9 @@ alter table public.user_progress enable row level security;
 alter table public.quiz_attempts enable row level security;
 
 drop policy if exists "Users can select own profile" on public.profiles;
-create policy "Users can select own profile"
+create policy "Anyone can select profiles"
 on public.profiles for select
-using (auth.uid() = id);
+using (true);
 
 drop policy if exists "Users can insert own profile" on public.profiles;
 create policy "Users can insert own profile"
@@ -141,3 +141,100 @@ drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
 after insert on auth.users
 for each row execute function public.handle_new_user();
+
+-- Word Contributions table for community video uploads
+create table if not exists public.word_contributions (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  word_id text not null,
+  word_text text not null,
+  video_url text not null,
+  description text,
+  status text not null default 'pending' check (status in ('pending', 'approved', 'rejected')),
+  reviewed_by uuid references public.profiles(id),
+  reviewed_at timestamptz,
+  created_at timestamptz not null default now()
+);
+
+-- Word Comments table for dictionary explanations
+create table if not exists public.word_comments (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  word_id text not null,
+  content text not null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+-- RLS policies for word_contributions
+alter table public.word_contributions enable row level security;
+
+drop policy if exists "Anyone can view approved contributions" on public.word_contributions;
+create policy "Anyone can view approved contributions"
+on public.word_contributions for select
+using (status = 'approved' or auth.uid() = user_id);
+
+drop policy if exists "Authenticated users can insert contributions" on public.word_contributions;
+create policy "Authenticated users can insert contributions"
+on public.word_contributions for insert
+with check (auth.uid() = user_id);
+
+drop policy if exists "Users can delete own contributions" on public.word_contributions;
+create policy "Users can delete own contributions"
+on public.word_contributions for delete
+using (auth.uid() = user_id);
+
+drop policy if exists "Teachers can review contributions" on public.word_contributions;
+create policy "Teachers can review contributions"
+on public.word_contributions for update
+using (
+  auth.uid() = user_id
+  or exists (
+    select 1 from public.profiles
+    where id = auth.uid() and role = 'teacher'
+  )
+);
+
+-- RLS policies for word_comments
+alter table public.word_comments enable row level security;
+
+drop policy if exists "Anyone can view comments" on public.word_comments;
+create policy "Anyone can view comments"
+on public.word_comments for select
+using (true);
+
+drop policy if exists "Authenticated users can insert comments" on public.word_comments;
+create policy "Authenticated users can insert comments"
+on public.word_comments for insert
+with check (auth.uid() = user_id);
+
+drop policy if exists "Users can delete own comments" on public.word_comments;
+create policy "Users can delete own comments"
+on public.word_comments for delete
+using (auth.uid() = user_id);
+
+drop policy if exists "Users can update own comments" on public.word_comments;
+create policy "Users can update own comments"
+on public.word_comments for update
+using (auth.uid() = user_id)
+with check (auth.uid() = user_id);
+
+-- Storage bucket configuration for video contributions
+insert into storage.buckets (id, name, public)
+values ('sign-videos', 'sign-videos', true)
+on conflict (id) do nothing;
+
+drop policy if exists "Public Access" on storage.objects;
+create policy "Public Access"
+on storage.objects for select
+using (bucket_id = 'sign-videos');
+
+drop policy if exists "Allow Authenticated Upload" on storage.objects;
+create policy "Allow Authenticated Upload"
+on storage.objects for insert
+with check (
+  bucket_id = 'sign-videos'
+  and auth.role() = 'authenticated'
+);
+
+

@@ -11,13 +11,7 @@ import { Input } from "@/components/ui/input";
 import { signInWithGoogle } from "@/lib/auth";
 import { createClient, missingEnvMessage } from "@/lib/supabase/client";
 
-type Role = "learner" | "supporter" | "teacher";
-
-const roles: { value: Role; label: string }[] = [
-  { value: "learner", label: "Người học" },
-  { value: "supporter", label: "Người hỗ trợ" },
-  { value: "teacher", label: "Giáo viên / chuyên môn" },
-];
+// Role mặc định là 'user', chỉ admin mới có thể đổi role
 
 function signupErrorMessage(message: string) {
   const lower = message.toLowerCase();
@@ -33,7 +27,7 @@ export default function RegisterPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [role, setRole] = useState<Role>("learner");
+  // Role luôn là 'user' khi đăng ký, không cho phép chọn
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
@@ -84,7 +78,7 @@ export default function RegisterPage() {
         password,
         options: {
           emailRedirectTo: `${window.location.origin}/auth/callback?next=/ho-so`,
-          data: { full_name: fullName, role },
+          data: { full_name: fullName, role: "user" },
         },
       });
 
@@ -150,16 +144,7 @@ export default function RegisterPage() {
               <span className="font-bold text-slate-800">Nhập lại mật khẩu</span>
               <Input type="password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} required autoComplete="new-password" />
             </label>
-            <label className="grid gap-2">
-              <span className="font-bold text-slate-800">Vai trò</span>
-              <select value={role} onChange={(event) => setRole(event.target.value as Role)} className="min-h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-base font-semibold text-slate-900 outline-none focus:ring-4 focus:ring-blue-100">
-                {roles.map((item) => (
-                  <option key={item.value} value={item.value}>
-                    {item.label}
-                  </option>
-                ))}
-              </select>
-            </label>
+            {/* Role mặc định là 'user', không cho người dùng tự chọn */}
             {message ? <p className="rounded-2xl bg-blue-50 p-3 font-semibold text-blue-900">{message}</p> : null}
             <Button type="submit" disabled={loading || googleLoading} className="min-h-12 rounded-full">
               {loading ? "Đang tạo tài khoản..." : "Đăng ký"}

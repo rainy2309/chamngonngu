@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { MessageSquareText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { learningStorageKeys, saveLearningItem } from "@/lib/localLearning";
+import { createClient, hasSupabaseEnv } from "@/lib/supabase/client";
 
 const examples = [
   "Xin chào, bạn khỏe không?",
@@ -16,21 +17,6 @@ const examples = [
   "Hôm nay tôi đi học.",
   "Bạn có thể viết ra giấy không?",
 ];
-
-const knownMeanings: Record<string, string> = {
-  "xin chào": "lời chào thân thiện",
-  "cảm ơn": "thể hiện sự biết ơn",
-  bạn: "người cùng giao tiếp",
-  khỏe: "trạng thái cơ thể tốt",
-  giúp: "hỗ trợ người khác",
-  nhà: "nơi ở hoặc địa điểm",
-  mua: "trao tiền để lấy hàng hóa",
-  nước: "đồ uống hoặc chất lỏng",
-  đau: "cảm giác khó chịu ở cơ thể",
-  "hôm nay": "ngày hiện tại",
-  học: "tiếp nhận kiến thức",
-  viết: "tạo chữ trên giấy hoặc màn hình",
-};
 
 const situationCards = [
   { topic: "Chào hỏi", sentence: "Xin chào, bạn khỏe không?", meaning: "Mở đầu cuộc trò chuyện lịch sự." },
@@ -60,6 +46,31 @@ function splitSentence(sentence: string) {
 export default function SentenceBuilderPage() {
   const [sentence, setSentence] = useState(examples[0]);
   const [submittedSentence, setSubmittedSentence] = useState(examples[0]);
+  const [dictionaryMap, setDictionaryMap] = useState<Record<string, { word: string; meaning: string; video_url: string | null; gif_url: string | null }>>({});
+
+  useEffect(() => {
+    if (hasSupabaseEnv()) {
+      const supabase = createClient();
+      supabase
+        .from("dictionary_words")
+        .select("word, normalized_word, meaning, video_url, gif_url")
+        .eq("status", "published")
+        .then(({ data }) => {
+          if (data) {
+            const map: Record<string, { word: string; meaning: string; video_url: string | null; gif_url: string | null }> = {};
+            data.forEach((row: any) => {
+              map[row.normalized_word] = {
+                word: row.word,
+                meaning: row.meaning,
+                video_url: row.video_url,
+                gif_url: row.gif_url,
+              };
+            });
+            setDictionaryMap(map);
+          }
+        });
+    }
+  }, []);
 
   function practice(nextSentence = sentence) {
     const trimmed = nextSentence.trim();
@@ -96,14 +107,25 @@ export default function SentenceBuilderPage() {
           <h2 className="text-2xl font-black text-slate-950">Phân tách câu</h2>
           <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {words.map((word, index) => {
-              const meaning = knownMeanings[normalize(word)];
+              const normalizedWord = normalize(word);
+              const dictionaryItem = dictionaryMap[normalizedWord];
+
               return (
-                <article key={`${word}-${index}`} className="min-w-0 rounded-[1.5rem] border border-blue-100 bg-white p-4 shadow-lg shadow-blue-100/50">
-                  <p className="break-words text-2xl font-black text-blue-700">{word}</p>
-                  <p className="mt-2 min-h-12 text-sm font-semibold leading-6 text-slate-600">{meaning ?? "Chưa có dữ liệu ký hiệu cho từ này trong MVP."}</p>
-                  <div className="mt-4 aspect-video rounded-2xl border border-dashed border-blue-200 bg-blue-50 p-3 text-center">
-                    <p className="text-sm font-black text-blue-800">GIF/Video minh họa ký hiệu</p>
-                    <p className="mt-1 text-xs font-semibold text-slate-500">Nội dung minh họa sẽ được nhóm bổ sung hoặc xác minh ở giai đoạn sau.</p>
+                <article key={`${word}-${index}`} className="min-w-0 rounded-[1.5rem] border border-blue-100 bg-white p-4 shadow-lg shadow-blue-100/50 flex flex-col justify-between">
+                  <div>
+                    <p className="break-words text-2xl font-black text-blue-700">{dictionaryItem?.word || word}</p>
+                    <p className="mt-2 min-h-12 text-sm font-semibold leading-6 text-slate-600">
+                      {dictionaryItem ? dictionaryItem.meaning : "Chưa có dữ liệu ký hiệu cho từ này trong cơ sở dữ liệu."}
+                    </p>
+                    <div className="mt-4 aspect-video rounded-2xl overflow-hidden bg-slate-900 border border-blue-100 flex items-center justify-center">
+                      {dictionaryItem?.video_url ? (
+                        <video src={dictionaryItem.video_url} className="h-full w-full object-contain" controls loop muted autoPlay playsInline />
+                      ) : dictionaryItem?.gif_url ? (
+                        <img src={dictionaryItem.gif_url} alt="Ký hiệu" className="h-full w-full object-contain" />
+                      ) : (
+                        <p className="text-xs font-semibold text-slate-400 p-2">Chưa có video minh họa</p>
+                      )}
+                    </div>
                   </div>
                 </article>
               );
@@ -115,17 +137,18 @@ export default function SentenceBuilderPage() {
           <h2 className="text-2xl font-black text-slate-950">Câu giao tiếp đời sống</h2>
           <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {situationCards.map((card) => (
-              <article key={card.topic} className="rounded-[1.75rem] border border-blue-100 bg-white p-5 shadow-lg shadow-blue-100/50">
-                <p className="text-sm font-black uppercase text-blue-600">{card.topic}</p>
-                <h3 className="mt-2 text-xl font-black text-slate-950">{card.sentence}</h3>
-                <p className="mt-2 font-semibold leading-7 text-slate-600">{card.meaning}</p>
-                <p className="mt-3 text-sm font-bold text-slate-500">Tách từ: {splitSentence(card.sentence).join(" + ")}</p>
-                <div className="mt-4 aspect-video rounded-2xl border border-dashed border-blue-200 bg-blue-50 p-3 text-center">
-                  <p className="font-black text-blue-800">GIF/Video minh họa ký hiệu</p>
+              <article key={card.topic} className="rounded-[1.75rem] border border-blue-100 bg-white p-5 shadow-lg shadow-blue-100/50 flex flex-col justify-between">
+                <div>
+                  <p className="text-sm font-black uppercase text-blue-600">{card.topic}</p>
+                  <h3 className="mt-2 text-xl font-black text-slate-950">{card.sentence}</h3>
+                  <p className="mt-2 font-semibold leading-7 text-slate-600">{card.meaning}</p>
+                  <p className="mt-3 text-sm font-bold text-slate-500">Tách từ: {splitSentence(card.sentence).join(" + ")}</p>
                 </div>
-                <Button variant="secondary" className="mt-4 w-full rounded-full sm:w-auto" onClick={() => practice(card.sentence)}>
-                  Luyện câu này
-                </Button>
+                <div className="mt-4">
+                  <Button variant="secondary" className="w-full rounded-full sm:w-auto" onClick={() => practice(card.sentence)}>
+                    Luyện câu này
+                  </Button>
+                </div>
               </article>
             ))}
           </div>
