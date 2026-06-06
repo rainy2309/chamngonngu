@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Keyboard, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { learningStorageKeys, saveLearningItem } from "@/lib/localLearning";
+import { createClient, hasSupabaseEnv } from "@/lib/supabase/client";
 
 const practiceWords = ["mẹ", "ba", "ăn", "học", "nhà", "sách", "cảm ơn", "xin chào", "hôm nay", "yêu thương"];
 
@@ -31,6 +32,29 @@ function detectTones(word: string) {
 export default function WordBuilderPage() {
   const [word, setWord] = useState("mẹ");
   const [submittedWord, setSubmittedWord] = useState("mẹ");
+  const [alphabetMediaMap, setAlphabetMediaMap] = useState<Record<string, { video_url: string | null; gif_url: string | null }>>({});
+
+  useEffect(() => {
+    if (hasSupabaseEnv()) {
+      const supabase = createClient();
+      supabase
+        .from("alphabet_media")
+        .select("letter_key, video_url, gif_url")
+        .eq("status", "published")
+        .then(({ data }) => {
+          if (data) {
+            const map: Record<string, { video_url: string | null; gif_url: string | null }> = {};
+            data.forEach((row: any) => {
+              map[row.letter_key] = {
+                video_url: row.video_url,
+                gif_url: row.gif_url,
+              };
+            });
+            setAlphabetMediaMap(map);
+          }
+        });
+    }
+  }, []);
 
   function practice(nextWord = word) {
     const trimmed = nextWord.trim();
@@ -63,7 +87,7 @@ export default function WordBuilderPage() {
             </div>
           </label>
 
-          <p className="mt-4 rounded-2xl bg-orange-50 p-4 text-sm font-semibold leading-6 text-orange-900">Phần ghép từ trong MVP mang tính mô phỏng học tập, chưa thay thế quy tắc ký hiệu chuẩn.</p>
+          <p className="mt-4 rounded-2xl bg-orange-50 p-4 text-sm font-semibold leading-6 text-orange-900">Phần ghép từ trong MVP lấy dữ liệu minh họa chữ cái thực tế từ cơ sở dữ liệu.</p>
         </div>
 
         <section className="mt-8">
@@ -72,14 +96,26 @@ export default function WordBuilderPage() {
             <h2 className="text-2xl font-black text-slate-950">Kết quả ghép từ: “{submittedWord}”</h2>
           </div>
           <div className="mt-4 grid grid-cols-1 gap-4 min-[390px]:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
-            {letters.map((letter, index) => (
-              <article key={`${letter}-${index}`} className="rounded-[1.5rem] border border-blue-100 bg-white p-4 text-center shadow-lg shadow-blue-100/50">
-                <p className="text-4xl font-black text-blue-700">{letter}</p>
-                <div className="mt-4 aspect-video rounded-2xl border border-dashed border-blue-200 bg-blue-50 p-3">
-                  <p className="text-sm font-black text-blue-800">GIF/Video minh họa ký hiệu chữ {letter}</p>
-                </div>
-              </article>
-            ))}
+            {letters.map((letter, index) => {
+              const key = letter.toLowerCase();
+              const media = alphabetMediaMap[key];
+              return (
+                <article key={`${letter}-${index}`} className="rounded-[1.5rem] border border-blue-100 bg-white p-4 text-center shadow-lg shadow-blue-100/50 flex flex-col justify-between">
+                  <div>
+                    <p className="text-4xl font-black text-blue-700">{letter}</p>
+                    <div className="mt-4 aspect-video rounded-2xl overflow-hidden bg-slate-900 border border-blue-100 flex items-center justify-center">
+                      {media?.video_url ? (
+                        <video src={media.video_url} className="h-full w-full object-contain" controls loop muted autoPlay playsInline />
+                      ) : media?.gif_url ? (
+                        <img src={media.gif_url} alt={`Chữ ${letter}`} className="h-full w-full object-contain" />
+                      ) : (
+                        <p className="text-xs font-semibold text-slate-400 p-2">Chưa có video minh họa</p>
+                      )}
+                    </div>
+                  </div>
+                </article>
+              );
+            })}
             {tones.map((tone) => (
               <article key={tone} className="rounded-[1.5rem] border border-orange-100 bg-orange-50 p-4 text-center shadow-lg shadow-orange-100/50">
                 <p className="text-xl font-black text-orange-800">{tone}</p>

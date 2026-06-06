@@ -9,6 +9,7 @@ export type SignDictionaryItem = {
   normalizedWord: string;
   firstLetter: string;
   meaning: string;
+  simpleExplanation?: string;
   category: string;
   region: SignRegion;
   difficulty: SignDifficulty;
@@ -54,6 +55,7 @@ function makeSign(
   relatedWords: string[],
   region: SignRegion = "Toàn quốc",
   difficulty: SignDifficulty = "easy",
+  simpleExplanation?: string,
 ): SignDictionaryItem {
   const normalizedWord = normalizeVietnameseText(word);
   return {
@@ -62,6 +64,7 @@ function makeSign(
     normalizedWord,
     firstLetter: getVietnameseFirstLetter(word),
     meaning,
+    simpleExplanation,
     category,
     region,
     difficulty,

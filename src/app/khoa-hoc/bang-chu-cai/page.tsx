@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Bookmark, Check, CheckCircle2, ChevronLeft, ChevronRight, PlayCircle } from "lucide-react";
+import { Bookmark, Check, CheckCircle2, ChevronLeft, ChevronRight, PlayCircle, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { alphabetSignData, type AlphabetSignItem } from "@/data/alphabetSignData";
 import { learningStorageKeys, saveLearningItem } from "@/lib/localLearning";
+import { createClient, hasSupabaseEnv } from "@/lib/supabase/client";
 
 const learnedAlphabetKey = "cham_learned_alphabet";
 const learnedSignsKey = "cham_learned_signs";
@@ -45,12 +45,56 @@ function saveViewedCourse() {
   saveLearningItem(learningStorageKeys.viewedLessons, { id: "bang-chu-cai", label: "Ký hiệu bảng chữ cái" });
 }
 
-function MediaPlaceholder({ item }: { item: AlphabetSignItem }) {
+type AlphabetItem = {
+  id: string;
+  letter_key: string;
+  letter: string;
+  title: string;
+  description: string | null;
+  video_url: string | null;
+  gif_url: string | null;
+  thumbnail_url: string | null;
+  instructions: string[];
+  tips: string[];
+  status: string;
+  display_order: number;
+};
+
+// Media renderer that supports real video/gif URLs or falls back to placeholder
+function MediaRenderer({ item }: { item: AlphabetItem }) {
+  if (item.video_url) {
+    return (
+      <div className="relative aspect-video w-full overflow-hidden rounded-[1.75rem] border border-blue-100 bg-black shadow-lg">
+        <video
+          src={item.video_url}
+          className="h-full w-full object-contain"
+          controls
+          autoPlay
+          loop
+          muted
+          playsInline
+        />
+      </div>
+    );
+  }
+
+  if (item.gif_url) {
+    return (
+      <div className="relative aspect-video w-full overflow-hidden rounded-[1.75rem] border border-blue-100 bg-slate-100 shadow-lg flex items-center justify-center">
+        <img
+          src={item.gif_url}
+          alt={item.title}
+          className="h-full w-full object-contain"
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="aspect-video w-full rounded-[1.75rem] border border-dashed border-blue-200 bg-blue-50 p-5 text-center text-blue-900 shadow-inner">
       <div className="flex h-full flex-col items-center justify-center gap-3">
         <PlayCircle className="h-10 w-10 text-blue-600" aria-hidden="true" />
-        <p className="text-base font-black sm:text-lg">{item.videoPlaceholder}</p>
+        <p className="text-base font-black sm:text-lg">GIF/Video minh họa chữ {item.letter}</p>
         <p className="max-w-md text-xs font-semibold leading-6 text-slate-500 sm:text-sm">Nội dung minh họa sẽ được nhóm bổ sung hoặc xác minh ở giai đoạn sau.</p>
       </div>
     </div>
@@ -58,20 +102,41 @@ function MediaPlaceholder({ item }: { item: AlphabetSignItem }) {
 }
 
 export default function AlphabetCoursePage() {
-  const [selectedId, setSelectedId] = useState(alphabetSignData[0]?.id ?? "");
+  const [alphabetList, setAlphabetList] = useState<AlphabetItem[]>([]);
+  const [selectedId, setSelectedId] = useState("");
   const [learnedIds, setLearnedIds] = useState<string[]>([]);
   const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
   const detailRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     setLearnedIds(readStringArray(learnedAlphabetKey));
     setFavoriteIds(readStringArray(favoriteSignsKey));
     saveViewedCourse();
+
+    async function loadAlphabet() {
+      if (hasSupabaseEnv()) {
+        const supabase = createClient();
+        const { data, error } = await supabase
+          .from("alphabet_media")
+          .select("*")
+          .eq("status", "published")
+          .order("display_order", { ascending: true })
+          .order("letter", { ascending: true });
+
+        if (data && data.length > 0) {
+          setAlphabetList(data);
+          setSelectedId(data[0].id);
+        }
+      }
+      setLoading(false);
+    }
+    void loadAlphabet();
   }, []);
 
-  const selectedIndex = useMemo(() => alphabetSignData.findIndex((item) => item.id === selectedId), [selectedId]);
-  const selectedItem = alphabetSignData[selectedIndex] ?? alphabetSignData[0];
-  const totalLetters = alphabetSignData.length;
+  const selectedIndex = useMemo(() => alphabetList.findIndex((item) => item.id === selectedId), [selectedId, alphabetList]);
+  const selectedItem = useMemo(() => alphabetList[selectedIndex] ?? alphabetList[0], [selectedIndex, alphabetList]);
+  const totalLetters = alphabetList.length;
 
   function selectLetter(id: string, shouldScroll = true) {
     setSelectedId(id);
@@ -83,31 +148,52 @@ export default function AlphabetCoursePage() {
   }
 
   function markLearned() {
+    if (!selectedItem) return;
     const next = saveUniqueString(learnedAlphabetKey, selectedItem.id);
     saveUniqueString(learnedSignsKey, `alphabet-${selectedItem.id}`);
     setLearnedIds(next);
   }
 
   function saveFavorite() {
+    if (!selectedItem) return;
     const next = saveUniqueString(favoriteSignsKey, selectedItem.id);
     setFavoriteIds(next);
   }
 
   function goToIndex(index: number) {
-    const next = alphabetSignData[index];
+    const next = alphabetList[index];
     if (next) selectLetter(next.id);
   }
 
-  if (!alphabetSignData.length) {
+  if (loading) {
     return (
-      <main className="flex-1 bg-gradient-to-b from-blue-50 via-white to-white px-4 py-8 sm:px-6 sm:py-12 lg:px-8">
-        <div className="mx-auto max-w-4xl rounded-[2rem] border border-blue-100 bg-white p-6 text-center font-bold text-blue-900 shadow-xl shadow-blue-100/60">Chưa có dữ liệu bảng chữ cái.</div>
+      <main className="flex-1 bg-gradient-to-b from-blue-50 via-white to-white px-4 py-20 text-center">
+        <div className="flex flex-col items-center justify-center gap-3">
+          <Loader2 className="h-10 w-10 animate-spin text-blue-600" />
+          <p className="font-semibold text-slate-500">Đang tải dữ liệu bảng chữ cái...</p>
+        </div>
       </main>
     );
   }
 
-  const selectedIsLearned = learnedIds.includes(selectedItem.id);
-  const selectedIsFavorite = favoriteIds.includes(selectedItem.id);
+  if (!alphabetList.length) {
+    return (
+      <main className="flex-1 bg-gradient-to-b from-blue-50 via-white to-white px-4 py-8 sm:px-6 sm:py-12 lg:px-8">
+        <div className="mx-auto max-w-4xl rounded-[2rem] border border-blue-100 bg-white p-12 text-center font-bold text-slate-700 shadow-xl shadow-blue-100/60 space-y-4">
+          <p className="text-lg text-slate-800">Chưa có dữ liệu bảng chữ cái trong cơ sở dữ liệu.</p>
+          <p className="text-sm font-medium text-slate-500">Vui lòng truy cập trang Quản trị và seed dữ liệu hoặc thêm thủ công.</p>
+          <div className="pt-4">
+            <a href="/admin/seed" className="rounded-full bg-blue-600 px-6 py-2.5 text-sm font-bold text-white shadow-lg hover:bg-blue-700 transition">
+              Đi đến Seed Dữ liệu
+            </a>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
+  const selectedIsLearned = learnedIds.includes(selectedItem?.id);
+  const selectedIsFavorite = favoriteIds.includes(selectedItem?.id);
 
   return (
     <main className="flex-1 bg-gradient-to-b from-blue-50 via-white to-white px-4 py-8 sm:px-6 sm:py-12 lg:px-8">
@@ -126,8 +212,8 @@ export default function AlphabetCoursePage() {
 
         <div className="mt-6 rounded-[2rem] border border-blue-100 bg-white p-4 shadow-lg shadow-blue-100/50 sm:p-5">
           <div className="flex gap-2 overflow-x-auto pb-2 sm:flex-wrap sm:overflow-visible sm:pb-0" aria-label="Chọn chữ cái">
-            {alphabetSignData.map((item) => {
-              const active = item.id === selectedItem.id;
+            {alphabetList.map((item) => {
+              const active = item.id === selectedItem?.id;
               const learned = learnedIds.includes(item.id);
 
               return (
@@ -153,76 +239,84 @@ export default function AlphabetCoursePage() {
           </div>
         </div>
 
-        <div ref={detailRef} className="scroll-mt-28">
-          <section className="mt-6 rounded-[2rem] border border-blue-100 bg-white p-5 shadow-xl shadow-blue-100/60 sm:p-7">
-            <div className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr] lg:items-start">
-              <div>
-                <div className="mb-4 flex items-center justify-between gap-4">
-                  <div>
-                    <p className="text-7xl font-black leading-none text-blue-700 sm:text-8xl">{selectedItem.letter}</p>
-                    <h2 className="mt-3 text-2xl font-black text-slate-950 sm:text-3xl">{selectedItem.title}</h2>
+        {selectedItem && (
+          <div ref={detailRef} className="scroll-mt-28">
+            <section className="mt-6 rounded-[2rem] border border-blue-100 bg-white p-5 shadow-xl shadow-blue-100/60 sm:p-7">
+              <div className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr] lg:items-start">
+                <div>
+                  <div className="mb-4 flex items-center justify-between gap-4">
+                    <div>
+                      <p className="text-7xl font-black leading-none text-blue-700 sm:text-8xl">{selectedItem.letter}</p>
+                      <h2 className="mt-3 text-2xl font-black text-slate-950 sm:text-3xl">{selectedItem.title}</h2>
+                    </div>
+                    {selectedIsLearned ? <CheckCircle2 className="h-9 w-9 shrink-0 text-emerald-600" aria-label="Đã học" /> : null}
                   </div>
-                  {selectedIsLearned ? <CheckCircle2 className="h-9 w-9 shrink-0 text-emerald-600" aria-label="Đã học" /> : null}
+                  <MediaRenderer item={selectedItem} />
                 </div>
-                <MediaPlaceholder item={selectedItem} />
+
+                <div className="grid gap-5">
+                  <div className="flex flex-wrap gap-2">
+                    <Badge>Bảng chữ cái</Badge>
+                    <Badge className="bg-emerald-50 text-emerald-800 ring-emerald-100">Cơ bản</Badge>
+                    {selectedIsFavorite ? <Badge className="bg-orange-50 text-orange-800 ring-orange-100">Đã lưu yêu thích</Badge> : null}
+                  </div>
+
+                  {selectedItem.description && (
+                    <section>
+                      <h3 className="text-xl font-black text-slate-950">Mô tả ngắn</h3>
+                      <p className="mt-2 rounded-2xl bg-slate-50 p-4 text-sm font-semibold leading-7 text-slate-700 sm:text-base">{selectedItem.description}</p>
+                    </section>
+                  )}
+
+                  {selectedItem.instructions && selectedItem.instructions.length > 0 && (
+                    <section>
+                      <h3 className="text-xl font-black text-slate-950">Cách thực hiện</h3>
+                      <ul className="mt-3 grid gap-2">
+                        {selectedItem.instructions.map((instruction, idx) => (
+                          <li key={idx} className="rounded-2xl bg-blue-50 p-3 text-sm font-semibold leading-6 text-blue-900 sm:text-base">
+                            {instruction}
+                          </li>
+                        ))}
+                      </ul>
+                    </section>
+                  )}
+
+                  {selectedItem.tips && selectedItem.tips.length > 0 && (
+                    <section>
+                      <h3 className="text-xl font-black text-slate-950">Lưu ý khi học</h3>
+                      <ul className="mt-3 grid gap-2">
+                        {selectedItem.tips.map((tip, idx) => (
+                          <li key={idx} className="rounded-2xl bg-orange-50 p-3 text-sm font-semibold leading-6 text-orange-900 sm:text-base">
+                            {tip}
+                          </li>
+                        ))}
+                      </ul>
+                    </section>
+                  )}
+
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <Button className="w-full rounded-full" onClick={markLearned}>
+                      <CheckCircle2 className="h-5 w-5" aria-hidden="true" />
+                      Đánh dấu đã học
+                    </Button>
+                    <Button variant="secondary" className="w-full rounded-full" onClick={saveFavorite}>
+                      <Bookmark className={selectedIsFavorite ? "h-5 w-5 fill-blue-700" : "h-5 w-5"} aria-hidden="true" />
+                      Lưu yêu thích
+                    </Button>
+                    <Button variant="outline" className="w-full rounded-full" disabled={selectedIndex <= 0} onClick={() => goToIndex(selectedIndex - 1)}>
+                      <ChevronLeft className="h-5 w-5" aria-hidden="true" />
+                      Chữ trước
+                    </Button>
+                    <Button variant="outline" className="w-full rounded-full" disabled={selectedIndex >= totalLetters - 1} onClick={() => goToIndex(selectedIndex + 1)}>
+                      Chữ tiếp theo
+                      <ChevronRight className="h-5 w-5" aria-hidden="true" />
+                    </Button>
+                  </div>
+                </div>
               </div>
-
-              <div className="grid gap-5">
-                <div className="flex flex-wrap gap-2">
-                  <Badge>{selectedItem.category}</Badge>
-                  <Badge className="bg-emerald-50 text-emerald-800 ring-emerald-100">Cơ bản</Badge>
-                  {selectedIsFavorite ? <Badge className="bg-orange-50 text-orange-800 ring-orange-100">Đã lưu yêu thích</Badge> : null}
-                </div>
-
-                <section>
-                  <h3 className="text-xl font-black text-slate-950">Mô tả ngắn</h3>
-                  <p className="mt-2 rounded-2xl bg-slate-50 p-4 text-sm font-semibold leading-7 text-slate-700 sm:text-base">{selectedItem.description}</p>
-                </section>
-
-                <section>
-                  <h3 className="text-xl font-black text-slate-950">Cách thực hiện</h3>
-                  <ul className="mt-3 grid gap-2">
-                    {selectedItem.instructions.map((instruction) => (
-                      <li key={instruction} className="rounded-2xl bg-blue-50 p-3 text-sm font-semibold leading-6 text-blue-900 sm:text-base">
-                        {instruction}
-                      </li>
-                    ))}
-                  </ul>
-                </section>
-
-                <section>
-                  <h3 className="text-xl font-black text-slate-950">Lưu ý khi học</h3>
-                  <ul className="mt-3 grid gap-2">
-                    {selectedItem.tips.map((tip) => (
-                      <li key={tip} className="rounded-2xl bg-orange-50 p-3 text-sm font-semibold leading-6 text-orange-900 sm:text-base">
-                        {tip}
-                      </li>
-                    ))}
-                  </ul>
-                </section>
-
-                <div className="grid gap-2 sm:grid-cols-2">
-                  <Button className="w-full rounded-full" onClick={markLearned}>
-                    <CheckCircle2 className="h-5 w-5" aria-hidden="true" />
-                    Đánh dấu đã học
-                  </Button>
-                  <Button variant="secondary" className="w-full rounded-full" onClick={saveFavorite}>
-                    <Bookmark className={selectedIsFavorite ? "h-5 w-5 fill-blue-700" : "h-5 w-5"} aria-hidden="true" />
-                    Lưu yêu thích
-                  </Button>
-                  <Button variant="outline" className="w-full rounded-full" disabled={selectedIndex <= 0} onClick={() => goToIndex(selectedIndex - 1)}>
-                    <ChevronLeft className="h-5 w-5" aria-hidden="true" />
-                    Chữ trước
-                  </Button>
-                  <Button variant="outline" className="w-full rounded-full" disabled={selectedIndex >= totalLetters - 1} onClick={() => goToIndex(selectedIndex + 1)}>
-                    Chữ tiếp theo
-                    <ChevronRight className="h-5 w-5" aria-hidden="true" />
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </section>
-        </div>
+            </section>
+          </div>
+        )}
       </section>
     </main>
   );

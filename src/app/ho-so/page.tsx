@@ -11,17 +11,11 @@ import { getBestQuizScore } from "@/lib/quiz";
 import { learningStorageKeys, readBestQuizScore, readLearningItems, type StoredLearningItem } from "@/lib/localLearning";
 
 const roleLabels: Record<string, string> = {
-  learner: "Người học",
-  supporter: "Người hỗ trợ",
-  teacher: "Giáo viên / chuyên môn",
+  user: "Người dùng",
+  admin: "Quản trị viên",
 };
 
-const continuingCourses = [
-  { title: "Chào hỏi cơ bản", href: "/khoa-hoc/ghep-cau" },
-  { title: "Gia đình", href: "/tu-dien" },
-  { title: "Số đếm", href: "/khoa-hoc/bang-chu-cai" },
-  { title: "Cảm xúc", href: "/khoa-hoc/ghep-tu" },
-];
+
 
 function getInitials(name: string, email: string) {
   const source = name || email || "CHẠM";
@@ -54,7 +48,7 @@ export default function ProfilePage() {
   const [userId, setUserId] = useState("");
   const [email, setEmail] = useState("");
   const [fullName, setFullName] = useState("");
-  const [role, setRole] = useState("learner");
+  const [role, setRole] = useState("user");
   const [avatarUrl, setAvatarUrl] = useState("");
   const [joinedAt, setJoinedAt] = useState("");
   const [message, setMessage] = useState("");
@@ -65,6 +59,7 @@ export default function ProfilePage() {
   const [favoriteSigns, setFavoriteSigns] = useState<StoredLearningItem[]>([]);
   const [viewedLessons, setViewedLessons] = useState<StoredLearningItem[]>([]);
   const [bestScore, setBestScore] = useState(0);
+  const [courses, setCourses] = useState<{ title: string; href: string }[]>([]);
 
   useEffect(() => {
     setLearnedSigns(readLearningItems(learningStorageKeys.learned));
@@ -91,13 +86,13 @@ export default function ProfilePage() {
         }
 
         const metadataName = String(user.user_metadata.full_name ?? user.user_metadata.name ?? "");
-        const metadataRole = String(user.user_metadata.role ?? "learner");
+        const metadataRole = String(user.user_metadata.role ?? "user");
         const metadataAvatar = String(user.user_metadata.avatar_url ?? user.user_metadata.picture ?? "");
 
         setUserId(user.id);
         setEmail(user.email ?? "");
         setFullName(metadataName);
-        setRole(metadataRole || "learner");
+        setRole(metadataRole || "user");
         setAvatarUrl(metadataAvatar);
         setJoinedAt(user.created_at ?? "");
 
@@ -112,7 +107,7 @@ export default function ProfilePage() {
         }
 
         const profileName = data?.full_name || metadataName;
-        const profileRole = data?.role || metadataRole || "learner";
+        const profileRole = data?.role || metadataRole || "user";
         const profileAvatar = data?.avatar_url || metadataAvatar;
 
         setFullName(profileName);
@@ -134,9 +129,44 @@ export default function ProfilePage() {
             setProfileTableReady(false);
           }
         }
+
+        // Fetch lessons dynamically
+        try {
+          const { data: dbLessons } = await supabase
+            .from("lessons")
+            .select("id, topic")
+            .eq("status", "published")
+            .order("sort_order")
+            .limit(4);
+          if (dbLessons && dbLessons.length > 0) {
+            setCourses(dbLessons.map((l: any) => ({
+              title: l.topic,
+              href: `/lessons/${l.id}`
+            })));
+          } else {
+            throw new Error("No lessons");
+          }
+        } catch {
+          if (process.env.NODE_ENV === "development") {
+            setCourses([
+              { title: "Chào hỏi cơ bản", href: "/khoa-hoc/ghep-cau" },
+              { title: "Gia đình", href: "/tu-dien" },
+              { title: "Số đếm", href: "/khoa-hoc/bang-chu-cai" },
+              { title: "Cảm xúc", href: "/khoa-hoc/ghep-tu" },
+            ]);
+          }
+        }
       } catch {
         setMessage("Chưa kết nối bảng hồ sơ. Thông tin đang hiển thị từ tài khoản đăng nhập.");
         setProfileTableReady(false);
+        if (process.env.NODE_ENV === "development") {
+          setCourses([
+            { title: "Chào hỏi cơ bản", href: "/khoa-hoc/ghep-cau" },
+            { title: "Gia đình", href: "/tu-dien" },
+            { title: "Số đếm", href: "/khoa-hoc/bang-chu-cai" },
+            { title: "Cảm xúc", href: "/khoa-hoc/ghep-tu" },
+          ]);
+        }
       } finally {
         setLoading(false);
       }
@@ -155,10 +185,12 @@ export default function ProfilePage() {
     try {
       const supabase = createClient();
       if (profileTableReady) {
-        const { error } = await supabase.from("profiles").upsert({ id: userId, full_name: fullName, role, avatar_url: avatarUrl, updated_at: new Date().toISOString() });
+        // Không gửi role khi update - user không được tự đổi role
+        const { error } = await supabase.from("profiles").upsert({ id: userId, full_name: fullName, avatar_url: avatarUrl, updated_at: new Date().toISOString() });
         if (error) throw error;
       }
-      await supabase.auth.updateUser({ data: { full_name: fullName, role, avatar_url: avatarUrl } });
+      // Không gửi role trong auth metadata
+      await supabase.auth.updateUser({ data: { full_name: fullName, avatar_url: avatarUrl } });
       setMessage("Đã cập nhật hồ sơ.");
     } catch {
       setMessage("Không thể lưu hồ sơ. Vui lòng thử lại.");
@@ -239,11 +271,15 @@ export default function ProfilePage() {
                 <CardTitle>Khóa học đang tiếp tục</CardTitle>
               </CardHeader>
               <CardContent className="grid gap-2">
-                {continuingCourses.map((course) => (
-                  <Link key={course.title} href={course.href} className="rounded-2xl border border-blue-100 bg-blue-50/60 px-4 py-3 font-bold text-blue-800 hover:bg-blue-100">
-                    {course.title}
-                  </Link>
-                ))}
+                {courses.length > 0 ? (
+                  courses.map((course) => (
+                    <Link key={course.title} href={course.href} className="rounded-2xl border border-blue-100 bg-blue-50/60 px-4 py-3 font-bold text-blue-800 hover:bg-blue-100">
+                      {course.title}
+                    </Link>
+                  ))
+                ) : (
+                  <p className="text-sm font-semibold text-slate-500 rounded-3xl bg-slate-50 p-4">Không có bài học khả dụng.</p>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -285,17 +321,7 @@ export default function ProfilePage() {
                 </label>
                 <label className="grid gap-2">
                   <span className="font-bold text-slate-800">Vai trò</span>
-                  <select
-                    value={role}
-                    onChange={(event) => setRole(event.target.value)}
-                    className="min-h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-base font-semibold text-slate-900 outline-none focus:ring-4 focus:ring-blue-100"
-                  >
-                    {Object.entries(roleLabels).map(([value, label]) => (
-                      <option key={value} value={value}>
-                        {label}
-                      </option>
-                    ))}
-                  </select>
+                  <Input value={roleLabels[role] ?? role} disabled />
                 </label>
                 {message ? <p className="rounded-2xl bg-blue-50 p-3 font-semibold text-blue-900">{message}</p> : null}
                 <Button type="submit" disabled={saving || !userId} className="w-full rounded-full sm:w-auto">
