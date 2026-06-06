@@ -33,3 +33,22 @@ WHERE video_url IS NOT NULL
 -- UPDATE public.profiles
 -- SET role = 'admin'
 -- WHERE full_name = 'Tên tài khoản của bạn';
+
+-- 5. SỬA TRIGGER ĐỂ CHO PHÉP ADMIN CẬP NHẬT ROLE TRÊN SUPABASE CONSOLE
+-- Khi chạy lệnh UPDATE trong SQL Editor hoặc Table Editor của Supabase, auth.uid() sẽ là NULL.
+-- Trigger cũ kiểm tra public.is_admin() (yêu cầu auth.uid() phải là admin) nên đã chặn nhầm cả các cập nhật từ Dashboard.
+CREATE OR REPLACE FUNCTION public.preserve_profile_role()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  -- Chỉ chặn thay đổi role nếu hành động đến từ một client user (auth.uid() khác NULL) và người đó không phải admin.
+  -- Nếu auth.uid() là NULL (tức là lệnh chạy từ Dashboard SQL/Table Editor), ta cho phép cập nhật.
+  IF auth.uid() IS NOT NULL AND NEW.role IS DISTINCT FROM OLD.role AND NOT public.is_admin() THEN
+    NEW.role := OLD.role;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
