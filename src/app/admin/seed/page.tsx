@@ -81,13 +81,18 @@ export default function AdminSeedPage() {
     try {
       const supabase = createClient();
 
-      // 1. Seed Alphabet Media (29 letters)
-      setStatusMessage("Đang nạp 29 chữ cái bảng chữ cái...");
+      // 1. Seed Alphabet Media
+      setStatusMessage("Đang nạp dữ liệu bảng chữ cái kiểu biểu đồ...");
       const alphaRows = alphabetSignData.map((item) => ({
-        letter_key: item.letter.toLowerCase(),
+        letter_key: item.letter_key,
         letter: item.letter,
+        display_label: item.display_label,
+        type: item.type,
         title: item.title,
         description: item.description,
+        explanation: item.explanation,
+        display_order: item.display_order,
+        status: item.status,
         video_url: null, // User will update this with real video URLs later
         gif_url: null,
         instructions: item.instructions,
