@@ -13,11 +13,16 @@ import {
 } from "@/lib/alphabetBoardImages";
 import { createClient, hasSupabaseEnv } from "@/lib/supabase/client";
 
+type AlphabetAdminType = "letter" | "vowel_modifier" | "tone_mark";
+
 type AlphabetItem = {
   id: string;
   letter_key: string;
   letter: string;
+  display_label?: string | null;
+  type?: AlphabetAdminType | null;
   title: string;
+  explanation?: string | null;
   video_url?: string | null;
   board_image_url?: string | null;
   board_image_storage_path?: string | null;
@@ -26,10 +31,23 @@ type AlphabetItem = {
   display_order: number;
 };
 
+function getItemLabel(item: AlphabetItem) {
+  return item.display_label || item.letter;
+}
+
+function getTypeLabel(type?: AlphabetAdminType | null) {
+  if (type === "vowel_modifier") return "Biến thể nguyên âm";
+  if (type === "tone_mark") return "Dấu thanh";
+  return "Chữ cái";
+}
+
 function getDefaultAlt(item: AlphabetItem) {
-  return item.letter.toLowerCase().startsWith("dấu")
-    ? `Minh họa ký hiệu ${item.letter}`
-    : `Minh họa ký hiệu chữ ${item.letter}`;
+  const label = getItemLabel(item);
+  if (item.type === "tone_mark" || label.toLowerCase().startsWith("dấu")) {
+    return `Minh họa ký hiệu ${label}`;
+  }
+
+  return `Minh họa ký hiệu ${label}`;
 }
 
 function BoardImageUploadModal({
@@ -80,10 +98,10 @@ function BoardImageUploadModal({
           <div>
             <p className="text-xs font-black uppercase tracking-wide text-blue-600">Ảnh ngoài bảng</p>
             <h2 className="mt-1 text-2xl font-black text-slate-950">
-              Tải ảnh ngoài bảng cho {item.letter}
+              Tải ảnh ngoài bảng cho {getItemLabel(item)}
             </h2>
             <p className="mt-2 text-sm font-semibold leading-6 text-slate-600">
-              Ảnh này chỉ hiển thị ở ô ngoài bảng chữ cái. Popup chi tiết vẫn giữ phần minh họa riêng.
+              Ảnh này chỉ hiển thị ở ô ngoài bảng. Popup chi tiết và video/GIF không bị thay đổi.
             </p>
           </div>
           <button
@@ -166,8 +184,9 @@ export default function AdminAlphabetPage() {
     const { data, error } = await supabase
       .from("alphabet_media")
       .select(
-        "id, letter_key, letter, title, video_url, board_image_url, board_image_storage_path, board_image_alt, status, display_order",
+        "id, letter_key, letter, display_label, type, title, explanation, video_url, board_image_url, board_image_storage_path, board_image_alt, status, display_order",
       )
+      .neq("status", "archived")
       .order("display_order", { ascending: true })
       .order("letter", { ascending: true });
 
@@ -176,13 +195,13 @@ export default function AdminAlphabetPage() {
     }
 
     if (data) {
-      setLetters(data);
+      setLetters(data as AlphabetItem[]);
     }
     setLoading(false);
   }
 
   async function deleteLetter(id: string) {
-    if (!confirm("Bạn có chắc muốn xóa chữ cái này khỏi hệ thống?")) return;
+    if (!confirm("Bạn có chắc muốn xóa mục này khỏi hệ thống?")) return;
     setDeleting(id);
     const supabase = createClient();
     await supabase.from("alphabet_media").delete().eq("id", id);
@@ -246,9 +265,11 @@ export default function AdminAlphabetPage() {
   const filtered = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
     return letters.filter((item) => {
+      const label = getItemLabel(item).toLowerCase();
       return (
         !normalizedQuery ||
-        item.letter.toLowerCase().includes(normalizedQuery) ||
+        item.letter_key.toLowerCase().includes(normalizedQuery) ||
+        label.includes(normalizedQuery) ||
         item.title.toLowerCase().includes(normalizedQuery)
       );
     });
@@ -259,11 +280,11 @@ export default function AdminAlphabetPage() {
       <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-3xl font-black text-slate-950">Quản lý bảng chữ cái</h1>
-          <p className="mt-1 font-semibold text-slate-500">{letters.length} mục trong hệ thống</p>
+          <p className="mt-1 font-semibold text-slate-500">{letters.length} mục kiểu biểu đồ trong hệ thống</p>
         </div>
         <Button asChild className="gap-2 rounded-full">
           <Link href="/admin/alphabet/new">
-            <Plus className="h-5 w-5" aria-hidden="true" /> Thêm chữ cái mới
+            <Plus className="h-5 w-5" aria-hidden="true" /> Thêm mục mới
           </Link>
         </Button>
       </div>
@@ -274,7 +295,7 @@ export default function AdminAlphabetPage() {
           <Input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Tìm chữ cái..."
+            placeholder="Tìm mục..."
             className="border-0 focus-visible:ring-0"
           />
         </div>
@@ -291,29 +312,39 @@ export default function AdminAlphabetPage() {
         <div className="rounded-2xl border border-dashed border-slate-200 p-8 text-center">
           <p className="font-bold text-slate-500">
             {letters.length === 0
-              ? "Chưa có chữ cái nào. Hãy seed dữ liệu hoặc thêm mới."
+              ? "Chưa có mục bảng chữ cái nào. Hãy chạy SQL cấu trúc biểu đồ hoặc seed dữ liệu."
               : "Không tìm thấy kết quả phù hợp."}
           </p>
         </div>
       ) : (
         <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
-          <table className="w-full min-w-[980px] text-left text-sm">
+          <table className="w-full min-w-[1120px] text-left text-sm">
             <thead>
               <tr className="border-b border-slate-100 bg-slate-50">
-                <th className="px-6 py-3 font-black text-slate-700">Chữ cái</th>
+                <th className="px-6 py-3 font-black text-slate-700">Mục</th>
+                <th className="px-6 py-3 font-black text-slate-700">Loại</th>
                 <th className="px-6 py-3 font-black text-slate-700">Tiêu đề</th>
-                <th className="px-6 py-3 font-black text-slate-700">Thứ tự hiển thị</th>
+                <th className="px-6 py-3 font-black text-slate-700">Thứ tự</th>
                 <th className="px-6 py-3 font-black text-slate-700">Trạng thái</th>
-                <th className="px-6 py-3 font-black text-slate-700">Video ký hiệu</th>
                 <th className="px-6 py-3 font-black text-slate-700">Ảnh ngoài bảng</th>
+                <th className="px-6 py-3 font-black text-slate-700">Video ký hiệu</th>
                 <th className="px-6 py-3 font-black text-slate-700">Thao tác</th>
               </tr>
             </thead>
             <tbody>
               {filtered.map((item) => (
                 <tr key={item.id} className="border-b border-slate-50 hover:bg-blue-50/30">
-                  <td className="px-6 py-3 text-lg font-extrabold text-blue-700">{item.letter}</td>
-                  <td className="px-6 py-3 font-bold text-slate-900">{item.title}</td>
+                  <td className="px-6 py-3">
+                    <p className="text-lg font-extrabold text-blue-700">{getItemLabel(item)}</p>
+                    <p className="mt-0.5 text-xs font-bold text-slate-400">{item.letter_key}</p>
+                  </td>
+                  <td className="px-6 py-3">
+                    <Badge className="bg-blue-50 text-blue-700 hover:bg-blue-50">{getTypeLabel(item.type)}</Badge>
+                  </td>
+                  <td className="px-6 py-3">
+                    <p className="font-bold text-slate-900">{item.title}</p>
+                    {item.explanation ? <p className="mt-1 max-w-xs text-xs font-semibold text-slate-500">{item.explanation}</p> : null}
+                  </td>
                   <td className="px-6 py-3 font-semibold text-slate-600">{item.display_order}</td>
                   <td className="px-6 py-3">
                     <Badge
@@ -325,13 +356,6 @@ export default function AdminAlphabetPage() {
                     >
                       {item.status === "published" ? "Đã xuất bản" : "Bản nháp"}
                     </Badge>
-                  </td>
-                  <td className="px-6 py-3">
-                    {item.video_url ? (
-                      <Badge className="bg-emerald-50 text-emerald-700 hover:bg-emerald-50">Đã gắn video</Badge>
-                    ) : (
-                      <Badge className="bg-red-50 text-red-600 hover:bg-red-50">Chưa có video</Badge>
-                    )}
                   </td>
                   <td className="px-6 py-3">
                     <div className="flex items-center gap-3">
@@ -372,6 +396,13 @@ export default function AdminAlphabetPage() {
                         ) : null}
                       </div>
                     </div>
+                  </td>
+                  <td className="px-6 py-3">
+                    {item.video_url ? (
+                      <Badge className="bg-emerald-50 text-emerald-700 hover:bg-emerald-50">Đã gắn video</Badge>
+                    ) : (
+                      <Badge className="bg-red-50 text-red-600 hover:bg-red-50">Chưa có video</Badge>
+                    )}
                   </td>
                   <td className="px-6 py-3">
                     <div className="flex gap-2">
