@@ -85,6 +85,15 @@ function saveUniqueString(key: string, id: string) {
   return next;
 }
 
+function toggleUniqueString(key: string, id: string) {
+  if (typeof window === "undefined") return [];
+
+  const current = readStringArray(key);
+  const next = current.includes(id) ? current.filter((item) => item !== id) : [id, ...current];
+  window.localStorage.setItem(key, JSON.stringify(next));
+  return next;
+}
+
 function saveViewedCourse() {
   saveLearningItem(learningStorageKeys.viewedLessons, { id: "bang-chu-cai", label: "Ký hiệu bảng chữ cái" });
 }
@@ -286,11 +295,11 @@ function DetailModal({
               </div>
 
               <div className="grid gap-2 border-t border-blue-100 pt-3 sm:grid-cols-3">
-                <Button className="w-full rounded-full" onClick={onLearned}>
+                <Button variant={learned ? "success" : "secondary"} className="w-full rounded-full" onClick={onLearned}>
                   <CheckCircle2 className="h-5 w-5" aria-hidden="true" />
                   {learned ? "Đã học" : "Đánh dấu đã học"}
                 </Button>
-                <Button variant="secondary" className="w-full rounded-full" onClick={onFavorite}>
+                <Button variant={favorite ? "default" : "secondary"} className="w-full rounded-full" onClick={onFavorite}>
                   <Bookmark className={favorite ? "h-5 w-5 fill-blue-700" : "h-5 w-5"} aria-hidden="true" />
                   {favorite ? "Đã lưu yêu thích" : "Lưu yêu thích"}
                 </Button>
@@ -384,12 +393,12 @@ export default function AlphabetCoursePage() {
 
   function markLearned() {
     if (!selectedItem) return;
-    setLearnedIds(saveUniqueString(learnedAlphabetKey, selectedItem.letter_key));
+    setLearnedIds(toggleUniqueString(learnedAlphabetKey, selectedItem.letter_key));
   }
 
   function saveFavorite() {
     if (!selectedItem) return;
-    setFavoriteIds(saveUniqueString(favoriteSignsKey, selectedItem.letter_key));
+    setFavoriteIds(toggleUniqueString(favoriteSignsKey, selectedItem.letter_key));
   }
 
   const activeItems = useMemo(

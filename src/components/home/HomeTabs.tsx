@@ -109,7 +109,7 @@ export function HomeTabs() {
   }, []);
 
   return (
-    <SectionCard className="mx-auto mt-8 max-w-6xl sm:mt-12">
+    <SectionCard className="mx-auto mt-5 max-w-6xl sm:mt-7">
       <div className="mb-5 flex gap-2 overflow-x-auto border-b border-blue-100 pb-1 sm:mb-7 sm:gap-3">
         {tabs.map((tab) => (
           <button
@@ -141,7 +141,7 @@ export function HomeTabs() {
               )}
               <div className="text-center">
                 <Button asChild className="w-full rounded-full px-7 sm:w-auto">
-                  <Link href="/tu-dien">Xem tất cả từ vựng</Link>
+                  <Link href="/khoa-hoc/tu-vung">Học từ vựng theo chủ đề</Link>
                 </Button>
               </div>
             </div>
