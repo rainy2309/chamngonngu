@@ -14,7 +14,7 @@ export default function Home() {
     <main className="flex-1 bg-gradient-to-b from-blue-50 via-white to-white">
       <HeroSection />
       <SearchSection />
-      <div className="px-4 pb-16 sm:px-6 lg:px-8">
+      <div className="px-4 pb-10 sm:px-6 lg:px-8">
         <HomeTabs />
       </div>
       <section id="ve-cham" className="px-4 pb-6 sm:px-6 lg:px-8">

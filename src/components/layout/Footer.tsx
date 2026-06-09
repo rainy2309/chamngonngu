@@ -3,8 +3,8 @@ import { ChamLogo } from "@/components/common/ChamLogo";
 
 export function Footer() {
   return (
-    <footer className="mt-20 border-t border-blue-100 bg-white">
-      <div className="mx-auto grid max-w-7xl gap-5 px-4 py-8 text-slate-600 sm:px-6 lg:px-8">
+    <footer className="mt-20 border-t border-blue-100 bg-white dark:border-slate-700 dark:bg-slate-950">
+      <div className="mx-auto grid max-w-7xl gap-5 px-4 py-8 text-slate-600 dark:text-slate-300 sm:px-6 lg:px-8">
         <div className="flex flex-wrap items-center gap-3">
           <ChamLogo className="h-12 w-12 shadow-none sm:h-14 sm:w-14" />
           <div className="pt-0.5 sm:pt-1">

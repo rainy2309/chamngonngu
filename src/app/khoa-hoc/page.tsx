@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { BookOpen, Feather, Layers3, MessageSquareText, Puzzle } from "lucide-react";
+import { BookOpen, Feather, Layers3, MessageSquareText, Puzzle, Tags } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -10,6 +10,13 @@ const courses = [
     button: "Bắt đầu",
     href: "/khoa-hoc/bang-chu-cai",
     icon: Feather,
+  },
+  {
+    title: "Từ vựng",
+    description: "Học các từ và câu giao tiếp cơ bản theo 10 chủ đề thường dùng trong đời sống.",
+    button: "Học từ vựng",
+    href: "/khoa-hoc/tu-vung",
+    icon: Tags,
   },
   {
     title: "Ghép từ",
@@ -29,7 +36,7 @@ const courses = [
     title: "Ngữ pháp ký hiệu",
     description: "Tìm hiểu cách biểu đạt ý nghĩa, trật tự thông tin và đặc điểm ngữ pháp trong ngôn ngữ ký hiệu.",
     button: "Xem ngữ pháp",
-    href: "/khoa-hoc/ngu-phap-ky-hieu",
+    href: "/khoa-hoc/ngu-phap",
     icon: Layers3,
   },
 ];
