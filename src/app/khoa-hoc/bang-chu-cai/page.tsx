@@ -12,8 +12,12 @@ const learnedAlphabetKey = "cham_learned_alphabet";
 const favoriteSignsKey = "cham_favorite_signs";
 
 type BoardAlphabetItem = AlphabetSignItem & {
+  media_id?: string | null;
   board_image_url?: string | null;
   board_image_alt?: string | null;
+  video_url?: string | null;
+  gif_url?: string | null;
+  thumbnail_url?: string | null;
 };
 
 const compactInstructions = [
@@ -104,6 +108,56 @@ function ImageBox({ item }: { item: AlphabetSignItem }) {
   );
 }
 
+function DetailMediaBox({ item }: { item: BoardAlphabetItem }) {
+  const [failed, setFailed] = useState(false);
+
+  if (item.video_url) {
+    return (
+      <div className="flex aspect-[4/3] min-h-32 w-full items-center justify-center overflow-hidden rounded-xl bg-slate-950">
+        <video
+          src={item.video_url}
+          poster={item.thumbnail_url ?? undefined}
+          controls
+          preload="metadata"
+          className="max-h-[260px] w-full rounded-xl object-contain sm:max-h-[320px] lg:max-h-[360px]"
+        >
+          Trình duyệt của bạn không hỗ trợ video.
+        </video>
+      </div>
+    );
+  }
+
+  if (item.gif_url && !failed) {
+    return (
+      <div className="flex aspect-[4/3] min-h-32 w-full items-center justify-center overflow-hidden rounded-xl bg-blue-50">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={item.gif_url}
+          alt={`GIF minh họa ${item.display_label}`}
+          className="max-h-[260px] w-full rounded-xl object-contain sm:max-h-[320px] lg:max-h-[360px]"
+          onError={() => setFailed(true)}
+        />
+      </div>
+    );
+  }
+
+  if (item.thumbnail_url && !failed) {
+    return (
+      <div className="flex aspect-[4/3] min-h-32 w-full items-center justify-center overflow-hidden rounded-xl bg-blue-50">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={item.thumbnail_url}
+          alt={`Ảnh minh họa ${item.display_label}`}
+          className="max-h-[260px] w-full rounded-xl object-contain sm:max-h-[320px] lg:max-h-[360px]"
+          onError={() => setFailed(true)}
+        />
+      </div>
+    );
+  }
+
+  return <ImageBox item={item} />;
+}
+
 function BoardPreviewBox({ item }: { item: BoardAlphabetItem }) {
   const [failed, setFailed] = useState(false);
   const canShowBoardImage = Boolean(item.board_image_url && !failed);
@@ -192,7 +246,7 @@ function DetailModal({
               </div>
 
               <div className="grid gap-4 lg:grid-cols-[0.88fr_1.12fr] lg:items-start">
-                <ImageBox item={item} />
+                <DetailMediaBox item={item} />
 
                 <div className="grid gap-3">
                   <section>
@@ -272,7 +326,9 @@ export default function AlphabetCoursePage() {
         const supabase = createClient();
         const { data, error } = await supabase
           .from("alphabet_media")
-          .select("letter_key, board_image_url, board_image_alt")
+          .select(
+            "id, letter_key, letter, display_label, type, title, description, explanation, instructions, tips, video_url, gif_url, thumbnail_url, board_image_url, board_image_alt, status, display_order",
+          )
           .eq("status", "published");
 
         if (error) {
@@ -284,6 +340,22 @@ export default function AlphabetCoursePage() {
           (data ?? []).map((row) => [
             String(row.letter_key),
             {
+              media_id: row.id as string | null,
+              letter: typeof row.letter === "string" ? row.letter : undefined,
+              label: typeof row.display_label === "string" ? row.display_label : undefined,
+              display_label: typeof row.display_label === "string" ? row.display_label : undefined,
+              type: row.type as AlphabetItemType,
+              title: typeof row.title === "string" ? row.title : undefined,
+              shortDescription: typeof row.description === "string" ? row.description : undefined,
+              description: typeof row.description === "string" ? row.description : undefined,
+              explanation: typeof row.explanation === "string" ? row.explanation : undefined,
+              instructions: Array.isArray(row.instructions) ? (row.instructions as string[]) : undefined,
+              tips: Array.isArray(row.tips) ? (row.tips as string[]) : undefined,
+              status: row.status as AlphabetSignItem["status"],
+              display_order: typeof row.display_order === "number" ? row.display_order : undefined,
+              video_url: row.video_url as string | null,
+              gif_url: row.gif_url as string | null,
+              thumbnail_url: row.thumbnail_url as string | null,
               board_image_url: row.board_image_url as string | null,
               board_image_alt: row.board_image_alt as string | null,
             },
@@ -303,6 +375,12 @@ export default function AlphabetCoursePage() {
 
     loadBoardImages();
   }, []);
+
+  useEffect(() => {
+    if (process.env.NODE_ENV !== "development" || !selectedItem) return;
+    console.log("Selected alphabet item:", selectedItem.letter_key, selectedItem);
+    console.log("Selected alphabet video_url:", selectedItem.video_url);
+  }, [selectedItem]);
 
   function markLearned() {
     if (!selectedItem) return;
