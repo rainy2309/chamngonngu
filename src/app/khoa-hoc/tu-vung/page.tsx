@@ -102,17 +102,6 @@ function MediaPreview({ item }: { item: VocabularyCourseItem }) {
   );
 }
 
-function CardPreviewBox() {
-  return (
-    <div className="flex h-16 items-center justify-center rounded-2xl bg-blue-50 text-center text-[11px] font-black text-blue-700 dark:bg-slate-800 dark:text-blue-200 sm:h-[72px]">
-      <div className="grid place-items-center gap-1">
-        <ImageIcon className="h-4 w-4" aria-hidden="true" />
-        Đang cập nhật
-      </div>
-    </div>
-  );
-}
-
 function VocabularyDetailModal({
   item,
   learned,
@@ -222,7 +211,6 @@ export default function VocabularyCoursePage() {
   const [favorites, setFavorites] = useState<string[]>([]);
   const [selectedItem, setSelectedItem] = useState<VocabularyCourseItem | null>(null);
   const [loading, setLoading] = useState(true);
-  const [notice, setNotice] = useState("Đang dùng dữ liệu mẫu cục bộ.");
 
   useEffect(() => {
     setLearned(readStorage(learnedKey));
@@ -231,7 +219,6 @@ export default function VocabularyCoursePage() {
     async function loadVocabulary() {
       if (!hasSupabaseEnv()) {
         setItems(vocabularyCourseData);
-        setNotice("Đang dùng dữ liệu mẫu cục bộ vì chưa kết nối Supabase.");
         setLoading(false);
         return;
       }
@@ -249,15 +236,12 @@ export default function VocabularyCoursePage() {
         if (error) throw error;
         if (data && data.length > 0) {
           setItems(data as VocabularyCourseItem[]);
-          setNotice("Đang dùng dữ liệu từ Supabase.");
         } else {
           setItems(vocabularyCourseData);
-          setNotice("Supabase chưa có dữ liệu từ vựng, đang dùng dữ liệu mẫu cục bộ.");
         }
       } catch (error) {
         console.error("Vocabulary course load error:", error);
         setItems(vocabularyCourseData);
-        setNotice("Không thể tải Supabase, đang dùng dữ liệu mẫu cục bộ.");
       } finally {
         setLoading(false);
       }
@@ -305,7 +289,6 @@ export default function VocabularyCoursePage() {
             <p className="mt-3 max-w-3xl text-sm font-semibold leading-7 text-slate-600 dark:text-slate-300 sm:text-lg">
               Học các từ và câu giao tiếp cơ bản bằng ngôn ngữ ký hiệu.
             </p>
-            <p className="mt-3 text-sm font-bold text-blue-700 dark:text-blue-200">{notice}</p>
           </div>
           <div className="grid grid-cols-2 gap-3 text-center">
             <div className="rounded-3xl bg-blue-50 px-5 py-4 text-blue-900 dark:bg-blue-500/15 dark:text-blue-100">
@@ -359,7 +342,6 @@ export default function VocabularyCoursePage() {
 
                 return (
                   <article key={getVocabularyItemKey(item, index)} role="button" tabIndex={0} onClick={() => setSelectedItem(item)} onKeyDown={(event) => event.key === "Enter" && setSelectedItem(item)} className="grid cursor-pointer gap-2.5 rounded-2xl border border-blue-100 bg-white p-3 shadow-sm shadow-blue-100/40 transition hover:-translate-y-0.5 hover:border-blue-300 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100 dark:border-slate-700 dark:bg-slate-900 dark:shadow-none">
-                    <CardPreviewBox />
                     <div>
                       <p className="line-clamp-2 min-h-[2.5rem] text-base font-black leading-5 text-slate-950 dark:text-white">{item.word}</p>
                       <p className="mt-1.5 w-fit rounded-full bg-blue-50 px-2.5 py-0.5 text-[11px] font-black text-blue-700 dark:bg-blue-500/15 dark:text-blue-100">{item.category}</p>

@@ -1,212 +1,212 @@
 "use client";
 
-import Link from "next/link";
-import { BookOpen, Bookmark, ClipboardCheck, Grid3X3, Layers, Loader2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { SectionCard } from "@/components/common/SectionCard";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { BookOpen, Bookmark, LibraryBig, Loader2, MessagesSquare, SpellCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { VocabGrid } from "@/components/vocab/VocabGrid";
-import { categories, lessons, vocabularyData } from "@/data/vocabularyData";
+import { vocabularyCourseData } from "@/data/vocabularyCourseData";
 import { createClient, hasSupabaseEnv } from "@/lib/supabase/client";
 
-const tabs = [
-  { id: "vocab", label: "Từ vựng", icon: Layers },
-  { id: "board", label: "Chủ đề", icon: Grid3X3 },
-  { id: "practice", label: "Luyện tập", icon: ClipboardCheck },
-  { id: "lessons", label: "Khóa học", icon: BookOpen },
-  { id: "favorites", label: "Yêu thích", icon: Bookmark },
+type FeaturedWord = {
+  id: string;
+  word: string;
+  category: string;
+  description: string;
+};
+
+const favoriteKey = "cham_favorite_signs";
+
+const featuredWords = ["Xin chào", "Cảm ơn", "Gia đình", "Bạn bè", "Ăn", "Uống", "Giúp tôi", "Tạm biệt"];
+
+const quickPaths = [
+  {
+    title: "Từ điển",
+    description: "Tra cứu ký hiệu và nghĩa của từ.",
+    href: "/tu-dien",
+    icon: LibraryBig,
+  },
+  {
+    title: "Từ vựng",
+    description: "Học theo chủ đề ngắn gọn.",
+    href: "/khoa-hoc/tu-vung",
+    icon: BookOpen,
+  },
+  {
+    title: "Bảng chữ cái",
+    description: "Làm quen chữ cái và dấu.",
+    href: "/khoa-hoc/bang-chu-cai",
+    icon: SpellCheck,
+  },
+  {
+    title: "Cộng đồng",
+    description: "Giao tiếp hòa nhập hơn.",
+    href: "/cong-dong",
+    icon: MessagesSquare,
+  },
 ];
 
+function readFavorites() {
+  if (typeof window === "undefined") return [];
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(favoriteKey) ?? "[]") as unknown;
+    return Array.isArray(parsed) ? parsed.map(String) : [];
+  } catch {
+    return [];
+  }
+}
+
+function toFeaturedWord(row: {
+  id: string;
+  word: string;
+  category: string;
+  description?: string | null;
+  simple_explanation?: string | null;
+  meaning?: string | null;
+}): FeaturedWord {
+  return {
+    id: row.id,
+    word: row.word,
+    category: row.category,
+    description: row.description || row.simple_explanation || row.meaning || "Từ vựng thông dụng trong giao tiếp hằng ngày.",
+  };
+}
+
+function pickFeaturedWords(items: FeaturedWord[]) {
+  const selected = featuredWords
+    .map((word) => items.find((item) => item.word.toLocaleLowerCase("vi") === word.toLocaleLowerCase("vi")))
+    .filter((item): item is FeaturedWord => Boolean(item));
+
+  const selectedIds = new Set(selected.map((item) => item.id));
+  const fallback = items.filter((item) => !selectedIds.has(item.id));
+  return [...selected, ...fallback].slice(0, 8);
+}
+
 export function HomeTabs() {
-  const [activeTab, setActiveTab] = useState("vocab");
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [dbLessons, setDbLessons] = useState<any[]>(lessons);
-  const [previewWords, setPreviewWords] = useState<any[]>([]);
-  const [favoriteWords, setFavoriteWords] = useState<any[]>([]);
+  const router = useRouter();
+  const [items, setItems] = useState<FeaturedWord[]>(() => vocabularyCourseData.map(toFeaturedWord));
+  const [favorites, setFavorites] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!hasSupabaseEnv()) {
-      setLoading(false);
-      return;
-    }
-    const supabase = createClient();
-    supabase.auth.getUser().then(({ data }) => setIsLoggedIn(Boolean(data.user)));
+    setFavorites(readFavorites());
 
-    async function loadData() {
+    async function loadVocabulary() {
+      if (!hasSupabaseEnv()) {
+        setLoading(false);
+        return;
+      }
+
       try {
-        // 1. Fetch preview words from DB
-        const { data: wordsData } = await supabase
+        const supabase = createClient();
+        const { data, error } = await supabase
           .from("dictionary_words")
-          .select("*")
+          .select("id, word, category, meaning, description, simple_explanation")
           .eq("status", "published")
-          .limit(4);
+          .limit(80);
 
-        if (wordsData && wordsData.length > 0) {
-          setPreviewWords(wordsData.map((row: any) => ({
-            id: row.id,
-            word: row.word,
-            meaning: row.meaning,
-            category: row.category,
-            exampleSentence: row.example_sentence ?? "",
-            imageDescription: row.description ?? "",
-            videoUrl: row.video_url || undefined,
-            gifUrl: row.gif_url || undefined,
-            difficulty: row.difficulty,
-            relatedWords: row.related_words || [],
-          })));
-        } else if (process.env.NODE_ENV === "development") {
-          console.warn("DB empty, falling back to static vocabularyData in DEV mode");
-          setPreviewWords(vocabularyData.slice(0, 4));
+        if (error) throw error;
+        if (data && data.length > 0) {
+          setItems(data.map((row) => toFeaturedWord(row as FeaturedWord)));
         }
-
-        // 2. Fetch favorites from DB based on local storage IDs
-        const localFavs = JSON.parse(window.localStorage.getItem("cham_favorite_signs") ?? "[]") as string[];
-        if (localFavs.length > 0) {
-          const { data: favsData } = await supabase
-            .from("dictionary_words")
-            .select("*")
-            .in("id", localFavs);
-
-          if (favsData) {
-            setFavoriteWords(favsData.map((row: any) => ({
-              id: row.id,
-              word: row.word,
-              meaning: row.meaning,
-              category: row.category,
-              exampleSentence: row.example_sentence ?? "",
-              imageDescription: row.description ?? "",
-              videoUrl: row.video_url || undefined,
-              gifUrl: row.gif_url || undefined,
-              difficulty: row.difficulty,
-              relatedWords: row.related_words || [],
-            })));
-          }
+      } catch (error) {
+        if (process.env.NODE_ENV === "development") {
+          console.error("Homepage vocabulary load error:", error);
         }
-
-        // 3. Fetch lessons
-        const { data: lessonsData } = await supabase
-          .from("lessons")
-          .select("*");
-
-        if (lessonsData && lessonsData.length > 0) {
-          setDbLessons(lessonsData.map((row: any) => ({
-            id: row.id,
-            topic: row.topic,
-            description: row.description,
-            difficulty: row.difficulty,
-            wordIds: row.word_ids,
-          })));
-        }
-      } catch (err) {
-        console.error("Error loading homepage data:", err);
       } finally {
         setLoading(false);
       }
     }
 
-    void loadData();
+    void loadVocabulary();
   }, []);
 
+  const previewItems = useMemo(() => pickFeaturedWords(items), [items]);
+
+  function toggleFavorite(id: string) {
+    const current = readFavorites();
+    const next = current.includes(id) ? current.filter((item) => item !== id) : [id, ...current];
+    window.localStorage.setItem(favoriteKey, JSON.stringify(next));
+    setFavorites(next);
+  }
+
   return (
-    <SectionCard className="mx-auto mt-5 max-w-6xl sm:mt-7">
-      <div className="mb-5 flex gap-2 overflow-x-auto border-b border-blue-100 pb-1 sm:mb-7 sm:gap-3">
-        {tabs.map((tab) => (
-          <button
-            key={tab.id}
-            type="button"
-            onClick={() => setActiveTab(tab.id)}
-            className={`flex min-h-12 shrink-0 items-center gap-2 whitespace-nowrap border-b-2 px-3 text-sm font-black transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100 sm:text-base ${
-              activeTab === tab.id ? "border-blue-600 text-blue-700" : "border-transparent text-slate-500 hover:text-blue-600"
-            }`}
-          >
-            <tab.icon className="h-5 w-5" aria-hidden="true" />
-            {tab.label}
-          </button>
-        ))}
-      </div>
-
-      {loading ? (
-        <div className="flex justify-center py-10">
-          <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+    <div className="mx-auto mt-6 grid max-w-7xl gap-6 sm:mt-8">
+      <section className="rounded-[1.75rem] border border-blue-100 bg-white p-4 shadow-lg shadow-blue-100/40 dark:border-slate-700 dark:bg-slate-900 dark:shadow-none sm:p-5">
+        <div className="mb-4 flex items-end justify-between gap-3">
+          <div>
+            <p className="text-xs font-black uppercase text-blue-600 dark:text-blue-300">Bắt đầu nhanh</p>
+            <h2 className="mt-1 text-2xl font-black text-slate-950 dark:text-white">Lối học chính</h2>
+          </div>
         </div>
-      ) : (
-        <>
-          {activeTab === "vocab" ? (
-            <div className="space-y-6">
-              {previewWords.length > 0 ? (
-                <VocabGrid items={previewWords} compact />
-              ) : (
-                <p className="text-center font-semibold text-slate-500 py-10">Chưa có từ vựng nào.</p>
-              )}
-              <div className="text-center">
-                <Button asChild className="w-full rounded-full px-7 sm:w-auto">
-                  <Link href="/khoa-hoc/tu-vung">Học từ vựng theo chủ đề</Link>
-                </Button>
-              </div>
-            </div>
-          ) : null}
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {quickPaths.map((path) => (
+            <Link
+              key={path.href}
+              href={path.href}
+              className="group rounded-2xl border border-blue-100 bg-blue-50/60 p-4 transition hover:-translate-y-0.5 hover:border-blue-300 hover:bg-blue-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:hover:bg-slate-800/80"
+            >
+              <path.icon className="h-6 w-6 text-blue-700 dark:text-blue-200" aria-hidden="true" />
+              <h3 className="mt-3 font-black text-slate-950 dark:text-white">{path.title}</h3>
+              <p className="mt-1 line-clamp-2 text-sm font-semibold leading-6 text-slate-600 dark:text-slate-300">{path.description}</p>
+            </Link>
+          ))}
+        </div>
+      </section>
 
-          {activeTab === "board" ? (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {categories.slice(0, 6).map((category) => (
-                <Link key={category} href={`/tu-dien?category=${encodeURIComponent(category)}`} className="rounded-3xl bg-blue-50 p-5 font-black text-blue-900 shadow-sm transition hover:bg-blue-100 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100 sm:p-6">
-                  {category}
-                  <p className="mt-2 text-sm font-semibold text-blue-700">Khám phá nhóm từ vựng</p>
-                </Link>
-              ))}
-            </div>
-          ) : null}
+      <section className="rounded-[1.75rem] border border-blue-100 bg-white p-4 shadow-lg shadow-blue-100/40 dark:border-slate-700 dark:bg-slate-900 dark:shadow-none sm:p-5">
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="text-xs font-black uppercase text-blue-600 dark:text-blue-300">Gợi ý học nhanh</p>
+            <h2 className="mt-1 text-2xl font-black text-slate-950 dark:text-white">Từ vựng nổi bật</h2>
+          </div>
+          <Button asChild className="w-full rounded-full sm:w-auto">
+            <Link href="/khoa-hoc/tu-vung">Xem tất cả từ vựng</Link>
+          </Button>
+        </div>
 
-          {activeTab === "practice" ? (
-            <div className="grid gap-4 md:grid-cols-3">
-              {["Chọn nghĩa đúng", "Nhận diện qua minh họa", "Ghép với chủ đề"].map((title) => (
-                <div key={title} className="rounded-3xl bg-blue-50 p-5 sm:p-6">
-                  <ClipboardCheck className="mb-4 h-8 w-8 text-blue-600" aria-hidden="true" />
-                  <h3 className="text-lg font-black text-slate-950 sm:text-xl">{title}</h3>
-                  <p className="mt-2 text-sm leading-6 text-slate-600 sm:text-base">Luyện tập nhanh với dữ liệu minh họa.</p>
-                </div>
-              ))}
-              <div className="md:col-span-3">
-                <Button asChild className="w-full rounded-full px-7 sm:w-auto">
-                  <Link href="/quiz">Bắt đầu luyện tập</Link>
-                </Button>
-              </div>
-            </div>
-          ) : null}
+        {loading ? (
+          <div className="flex justify-center py-8">
+            <Loader2 className="h-7 w-7 animate-spin text-blue-600" aria-hidden="true" />
+          </div>
+        ) : (
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {previewItems.map((item) => {
+              const isFavorite = favorites.includes(item.id);
 
-          {activeTab === "lessons" ? (
-            <div className="grid gap-4 md:grid-cols-2">
-              {dbLessons.slice(0, 4).map((lesson) => (
-                <div key={lesson.id} className="rounded-3xl border border-blue-100 p-5">
-                  <h3 className="text-lg font-black text-slate-950 sm:text-xl">{lesson.topic}</h3>
-                  <p className="mt-2 text-sm leading-7 text-slate-600 sm:text-base">{lesson.description}</p>
-                </div>
-              ))}
-              <div className="md:col-span-2">
-                <Button asChild className="w-full rounded-full px-7 sm:w-auto">
-                  <Link href="/khoa-hoc">Xem khóa học</Link>
-                </Button>
-              </div>
-            </div>
-          ) : null}
-
-          {activeTab === "favorites" ? (
-            <div className="space-y-6">
-              {favoriteWords.length > 0 ? (
-                <VocabGrid items={favoriteWords} compact />
-              ) : (
-                <div className="rounded-3xl bg-blue-50 p-6 text-center sm:p-8">
-                  <Bookmark className="mx-auto mb-4 h-10 w-10 text-blue-600" aria-hidden="true" />
-                  <p className="text-base font-bold text-blue-900 sm:text-lg">
-                    {isLoggedIn ? "Bạn chưa lưu từ yêu thích nào." : "Đăng nhập để lưu từ yêu thích."}
-                  </p>
-                </div>
-              )}
-            </div>
-          ) : null}
-        </>
-      )}
-    </SectionCard>
+              return (
+                <article
+                  key={item.id}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => router.push("/khoa-hoc/tu-vung")}
+                  onKeyDown={(event) => event.key === "Enter" && router.push("/khoa-hoc/tu-vung")}
+                  className="cursor-pointer rounded-2xl border border-blue-100 bg-white p-4 shadow-sm shadow-blue-100/30 transition hover:-translate-y-0.5 hover:border-blue-300 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100 dark:border-slate-700 dark:bg-slate-900 dark:shadow-none"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <h3 className="line-clamp-1 text-lg font-black text-slate-950 dark:text-white">{item.word}</h3>
+                      <p className="mt-1 w-fit rounded-full bg-blue-50 px-2.5 py-0.5 text-[11px] font-black text-blue-700 dark:bg-blue-500/15 dark:text-blue-100">{item.category}</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        toggleFavorite(item.id);
+                      }}
+                      className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-blue-50 text-blue-700 transition hover:bg-blue-100 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100 dark:bg-slate-800 dark:text-blue-200"
+                      aria-label={isFavorite ? `Bỏ lưu ${item.word}` : `Lưu ${item.word}`}
+                    >
+                      <Bookmark className={isFavorite ? "h-4 w-4 fill-blue-700" : "h-4 w-4"} aria-hidden="true" />
+                    </button>
+                  </div>
+                  <p className="mt-3 line-clamp-2 text-sm font-semibold leading-6 text-slate-600 dark:text-slate-300">{item.description}</p>
+                </article>
+              );
+            })}
+          </div>
+        )}
+      </section>
+    </div>
   );
 }
