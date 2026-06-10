@@ -63,6 +63,16 @@ function slugifyTopic(value: string) {
     .replace(/^-+|-+$/g, "");
 }
 
+function normalizeComparableText(value?: string | null) {
+  return (value ?? "").trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+function isMeaningfullyDifferent(value: string | undefined, comparedValues: Array<string | undefined>) {
+  const normalized = normalizeComparableText(value);
+  if (!normalized) return false;
+  return comparedValues.every((item) => normalizeComparableText(item) !== normalized);
+}
+
 function DictionaryContent() {
   const searchParams = useSearchParams();
   const searchParam = searchParams.get("search") || searchParams.get("q") || "";
@@ -188,26 +198,26 @@ function DictionaryContent() {
           </p>
         </div>
 
-        <SectionCard className="mb-6 dark:border-slate-700 dark:bg-slate-900 dark:shadow-none">
-          <div className="flex items-center gap-3 rounded-[1.5rem] border border-blue-100 bg-white px-4 py-2 shadow-lg shadow-blue-100/50 dark:border-slate-700 dark:bg-slate-800 dark:shadow-none sm:rounded-full">
-            <Search className="h-6 w-6 shrink-0 text-blue-500 dark:text-blue-300" aria-hidden="true" />
+        <SectionCard className="mb-5 !p-3 dark:border-slate-700 dark:bg-slate-900 dark:shadow-none sm:!p-4">
+          <div className="flex items-center gap-3 rounded-2xl border border-blue-100 bg-white px-3 py-1.5 shadow-sm shadow-blue-100/40 dark:border-slate-700 dark:bg-slate-800 dark:shadow-none sm:rounded-full">
+            <Search className="h-5 w-5 shrink-0 text-blue-500 dark:text-blue-300" aria-hidden="true" />
             <label className="sr-only" htmlFor="dictionary-search">Tìm kiếm từ điển</label>
             <input
               id="dictionary-search"
               value={query}
               onChange={(event) => setQuery(event.target.value.slice(0, 100))}
               placeholder="Tìm từ, cụm từ hoặc chủ đề ký hiệu..."
-              className="min-h-12 min-w-0 flex-1 bg-transparent text-sm font-semibold text-slate-800 outline-none placeholder:text-slate-400 dark:text-slate-50 dark:placeholder:text-slate-500 sm:text-base"
+              className="min-h-11 min-w-0 flex-1 bg-transparent text-sm font-semibold text-slate-800 outline-none placeholder:text-slate-400 dark:text-slate-50 dark:placeholder:text-slate-500 sm:text-base"
             />
           </div>
 
-          <div className="mt-5 grid gap-3 md:grid-cols-3">
+          <div className="mt-3 grid gap-2 md:grid-cols-3">
             <FilterSelect label="Chủ đề" value={category} onChange={setCategory} options={["Tất cả", ...signCategories]} />
             <FilterSelect label="Khu vực" value={region} onChange={setRegion} options={["Tất cả", ...signRegions]} getLabel={(value) => value === "Tất cả" ? value : regionLabels[value as keyof typeof regionLabels]} />
             <FilterSelect label="Độ khó" value={difficulty} onChange={setDifficulty} options={["Tất cả", "easy", "medium", "hard"]} getLabel={(value) => value === "Tất cả" ? value : difficultyLabels[value as keyof typeof difficultyLabels]} />
           </div>
 
-          <div className="sticky top-24 z-20 mt-5 flex gap-2 overflow-x-auto rounded-full bg-white/95 py-2 dark:bg-slate-900/95 lg:hidden">
+          <div className="sticky top-24 z-20 mt-3 flex gap-2 overflow-x-auto rounded-full bg-white/95 py-1.5 dark:bg-slate-900/95 lg:hidden">
             {vietnameseAlphabet.map((letter) => (
               <button key={letter} type="button" disabled={!lettersWithData.has(letter)} onClick={() => scrollToLetter(letter)} className={`h-9 min-w-9 rounded-full text-sm font-black ${lettersWithData.has(letter) ? "bg-blue-50 text-blue-700 dark:bg-blue-500/15 dark:text-blue-100" : "bg-slate-50 text-slate-300 dark:bg-slate-800 dark:text-slate-600"}`}>
                 {letter}
@@ -215,9 +225,9 @@ function DictionaryContent() {
             ))}
           </div>
 
-          <p className="mt-5 flex items-start gap-2 rounded-2xl bg-blue-50 p-4 text-sm font-semibold leading-6 text-blue-900 dark:bg-blue-500/15 dark:text-blue-100">
-            <Info className="mt-0.5 h-5 w-5 shrink-0 text-blue-600 dark:text-blue-200" aria-hidden="true" />
-            <span>Ký hiệu có thể khác nhau theo vùng. Nội dung trong bản demo cần được xác minh bởi giáo viên hoặc nguồn chuyên môn.</span>
+          <p className="mt-3 flex items-start gap-2 rounded-2xl bg-blue-50/70 px-3 py-2 text-xs font-semibold leading-5 text-blue-900 dark:bg-blue-500/10 dark:text-blue-100 sm:text-sm">
+            <Info className="mt-0.5 h-4 w-4 shrink-0 text-blue-600 dark:text-blue-200" aria-hidden="true" />
+            <span>Lưu ý: Ký hiệu có thể thay đổi theo vùng và cần được xác minh bởi nguồn chuyên môn.</span>
           </p>
         </SectionCard>
 
@@ -264,7 +274,7 @@ function DictionaryContent() {
         )}
       </div>
 
-      <SignDetailModal
+      <CompactSignDetailModal
         item={selected}
         favorite={selectedIsFavorite}
         learned={selectedIsLearned}
@@ -294,7 +304,7 @@ function FilterSelect({ label, value, onChange, options, getLabel }: { label: st
   return (
     <label className="grid gap-2">
       <span className="text-sm font-black text-slate-700 dark:text-slate-200">{label}</span>
-      <select value={value} onChange={(event) => onChange(event.target.value)} className="min-h-12 rounded-2xl border border-blue-100 bg-white px-4 font-bold text-slate-800 outline-none focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50">
+      <select value={value} onChange={(event) => onChange(event.target.value)} className="min-h-11 rounded-2xl border border-blue-100 bg-white px-3 text-sm font-bold text-slate-800 outline-none focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50">
         {options.map((option) => <option key={option} value={option}>{getLabel ? getLabel(option) : option}</option>)}
       </select>
     </label>
@@ -358,8 +368,8 @@ function MediaRenderer({ item }: { item: SignDictionaryItem }) {
   }
 
   return (
-    <div className="flex h-[160px] w-full items-center justify-center rounded-2xl bg-blue-50 text-center text-sm font-black text-blue-700 dark:bg-slate-800 dark:text-blue-200 sm:h-[190px] lg:h-[210px]">
-      Đang cập nhật minh họa
+    <div className="flex h-[150px] w-full items-center justify-center rounded-2xl bg-blue-50 text-center text-sm font-black text-blue-700 dark:bg-slate-800 dark:text-blue-200 sm:h-[180px] lg:h-[200px]">
+      Minh họa đang được cập nhật
     </div>
   );
 }
@@ -368,8 +378,8 @@ function EmptySearchState({ query }: { query: string }) {
   const wordId = normalizeVietnameseText(query);
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
-      <section className="rounded-[1.75rem] border border-blue-100 bg-white p-5 shadow-lg shadow-blue-100/40 dark:border-slate-700 dark:bg-slate-900 dark:shadow-none">
+    <div className="grid gap-3 lg:grid-cols-[1.15fr_0.85fr]">
+      <section className="rounded-[1.5rem] border border-blue-100 bg-white p-4 shadow-lg shadow-blue-100/30 dark:border-slate-700 dark:bg-slate-900 dark:shadow-none">
         <div className="flex items-center gap-2 text-blue-600 dark:text-blue-200">
           <Sparkles className="h-5 w-5" aria-hidden="true" />
           <span className="text-xs font-black uppercase">AI hỗ trợ</span>
@@ -382,11 +392,140 @@ function EmptySearchState({ query }: { query: string }) {
           <AIExplanation word={query} hasSignData={false} />
         </div>
       </section>
-      <div className="grid gap-4">
-        <CommunityVideos wordId={wordId} wordText={query} />
-        <WordComments wordId={wordId} />
+      <div className="grid gap-3">
+        <CommunityVideos wordId={wordId} wordText={query} compactEmpty />
+        <WordComments wordId={wordId} compact />
       </div>
     </div>
+  );
+}
+
+function CompactSignDetailModal({
+  item,
+  favorite,
+  learned,
+  onClose,
+  onFavorite,
+  onLearned,
+}: {
+  item: SignDictionaryItem | null;
+  favorite: boolean;
+  learned: boolean;
+  onClose: () => void;
+  onFavorite: () => void;
+  onLearned: () => void;
+}) {
+  const simpleExplanation = item?.simpleExplanation;
+  const description = item?.description;
+  const showSimpleExplanation = item ? isMeaningfullyDifferent(simpleExplanation, [item.meaning]) : false;
+  const showDescription = item ? isMeaningfullyDifferent(description, [item.meaning, simpleExplanation]) : false;
+  const showExample = Boolean(item?.exampleSentence?.trim());
+  const showSteps = Boolean(item?.signSteps.length);
+
+  return (
+    <Dialog.Root open={Boolean(item)} onOpenChange={(open) => !open && onClose()}>
+      <Dialog.Portal>
+        <Dialog.Overlay className="fixed inset-0 z-50 bg-slate-950/45 backdrop-blur-sm" />
+        <Dialog.Content className="fixed left-1/2 top-1/2 z-50 flex max-h-[86dvh] w-[calc(100vw-24px)] max-w-[920px] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-[1.35rem] border border-blue-100 bg-white shadow-2xl focus:outline-none focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-900">
+          {item ? (
+            <>
+              <div className="flex items-start justify-between gap-3 border-b border-blue-100 p-4 dark:border-slate-700 sm:p-5">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap gap-2">
+                    <Badge>{item.category}</Badge>
+                    <Badge className="bg-sky-50 text-sky-800 ring-sky-100 dark:bg-sky-500/15 dark:text-sky-100 dark:ring-sky-500/20">{regionLabels[item.region as keyof typeof regionLabels] ?? item.region}</Badge>
+                    <Badge className="bg-emerald-50 text-emerald-800 ring-emerald-100 dark:bg-emerald-500/15 dark:text-emerald-100 dark:ring-emerald-500/20">{difficultyLabels[item.difficulty]}</Badge>
+                  </div>
+                  <Dialog.Title className="mt-2 text-2xl font-black text-slate-950 dark:text-white sm:text-3xl">{item.word}</Dialog.Title>
+                </div>
+                <Dialog.Close asChild>
+                  <button type="button" className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-slate-100 text-slate-700 hover:bg-blue-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100 dark:bg-slate-800 dark:text-slate-100" aria-label="Đóng">
+                    <X className="h-5 w-5" aria-hidden="true" />
+                  </button>
+                </Dialog.Close>
+              </div>
+
+              <div className="scrollbar-hide flex-1 overflow-y-auto p-4 pb-5 sm:p-5">
+                <div className="grid gap-4 lg:grid-cols-[0.36fr_0.64fr] lg:items-start">
+                  <MediaRenderer item={item} />
+                  <div className="grid gap-3">
+                    {item.meaning ? (
+                      <section className="rounded-2xl bg-blue-50 p-3 dark:bg-blue-500/15">
+                        <h3 className="font-black text-slate-950 dark:text-white">Ý nghĩa</h3>
+                        <p className="mt-1.5 text-sm font-semibold leading-6 text-blue-900 dark:text-blue-100">{item.meaning}</p>
+                      </section>
+                    ) : null}
+                    {showSimpleExplanation ? (
+                      <section className="rounded-2xl bg-slate-50 p-3 dark:bg-slate-800">
+                        <h3 className="font-black text-slate-950 dark:text-white">Giải thích đơn giản</h3>
+                        <p className="mt-1.5 text-sm font-semibold leading-6 text-slate-600 dark:text-slate-300">{simpleExplanation}</p>
+                      </section>
+                    ) : null}
+                    {showDescription ? (
+                      <section>
+                        <h3 className="font-black text-slate-950 dark:text-white">Ghi chú / mô tả</h3>
+                        <p className="mt-1.5 text-sm font-semibold leading-6 text-slate-600 dark:text-slate-300">{description}</p>
+                      </section>
+                    ) : null}
+                    {showExample ? (
+                      <section>
+                        <h3 className="font-black text-slate-950 dark:text-white">Ví dụ</h3>
+                        <p className="mt-1.5 text-sm font-semibold leading-6 text-slate-600 dark:text-slate-300">{item.exampleSentence}</p>
+                      </section>
+                    ) : null}
+                    <section className="rounded-2xl border border-blue-100 bg-blue-50/50 p-3 dark:border-slate-700 dark:bg-slate-800/70">
+                      <AIExplanation word={item.word} hasSignData context={`Nghĩa: ${item.meaning}. Ví dụ: ${item.exampleSentence}`} />
+                    </section>
+                    <Link href={`/khoa-hoc/tu-vung?topic=${encodeURIComponent(slugifyTopic(item.category))}`} className="w-fit rounded-full bg-blue-50 px-3 py-2 text-sm font-black text-blue-700 hover:bg-blue-100 dark:bg-blue-500/15 dark:text-blue-100">
+                      Học trong chủ đề: {item.category}
+                    </Link>
+                  </div>
+                </div>
+
+                {showSteps ? (
+                  <section className="mt-4">
+                    <h3 className="font-black text-slate-950 dark:text-white">Các bước học</h3>
+                    <ul className="mt-2 grid gap-2">
+                      {item.signSteps.slice(0, 4).map((step) => (
+                        <li key={step} className="break-words rounded-2xl bg-blue-50 px-3 py-2 text-sm font-semibold leading-6 text-blue-900 dark:bg-blue-500/15 dark:text-blue-100">
+                          {step}
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+                ) : null}
+
+                <details className="mt-4 rounded-2xl border border-blue-100 bg-white p-3 dark:border-slate-700 dark:bg-slate-900">
+                  <summary className="cursor-pointer text-sm font-black text-blue-700 dark:text-blue-100">Đóng góp video và bình luận</summary>
+                  <div className="mt-3 grid gap-3">
+                    <CommunityVideos wordId={item.id} wordText={item.word} compactEmpty />
+                    <WordComments wordId={item.id} compact />
+                  </div>
+                </details>
+
+                <p className="mt-4 rounded-2xl bg-orange-50 p-3 text-sm font-semibold leading-6 text-orange-900 dark:bg-orange-500/15 dark:text-orange-100">
+                  Lưu ý: Ký hiệu có thể thay đổi theo vùng và cần được xác minh bởi nguồn chuyên môn.
+                </p>
+              </div>
+
+              <div className="sticky bottom-0 grid gap-2 border-t border-blue-100 bg-white p-3 dark:border-slate-700 dark:bg-slate-900 sm:grid-cols-3 sm:p-4">
+                <Button variant={learned ? "success" : "secondary"} onClick={onLearned} className="min-h-11 rounded-full text-sm">
+                  <CheckCircle2 className="h-5 w-5" aria-hidden="true" />
+                  {learned ? "Đã học" : "Đánh dấu đã học"}
+                </Button>
+                <Button variant={favorite ? "default" : "secondary"} onClick={onFavorite} className="min-h-11 rounded-full text-sm">
+                  <Bookmark className={favorite ? "h-5 w-5 fill-blue-700" : "h-5 w-5"} aria-hidden="true" />
+                  {favorite ? "Đã lưu" : "Lưu yêu thích"}
+                </Button>
+                <Dialog.Close asChild>
+                  <Button variant="outline" className="min-h-11 rounded-full text-sm">Đóng</Button>
+                </Dialog.Close>
+              </div>
+            </>
+          ) : null}
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
   );
 }
 

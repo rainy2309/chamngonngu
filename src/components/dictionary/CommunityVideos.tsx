@@ -20,7 +20,7 @@ const roleLabels: Record<string, string> = {
   admin: "Quản trị viên",
 };
 
-export function CommunityVideos({ wordId, wordText }: { wordId: string; wordText: string }) {
+export function CommunityVideos({ wordId, wordText, compactEmpty = false }: { wordId: string; wordText: string; compactEmpty?: boolean }) {
   const [videos, setVideos] = useState<Contribution[]>([]);
   const [showUpload, setShowUpload] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -80,6 +80,10 @@ export function CommunityVideos({ wordId, wordText }: { wordId: string; wordText
         <>
           {loading ? (
             <p className="py-4 text-center text-sm font-semibold text-slate-400">Đang tải video...</p>
+          ) : videos.length === 0 && compactEmpty ? (
+            <p className="rounded-xl bg-slate-50 p-3 text-sm font-semibold text-slate-500">
+              Chưa có video cộng đồng cho từ này.
+            </p>
           ) : videos.length === 0 ? (
             <div className="rounded-xl border border-dashed border-slate-200 p-6 text-center">
               <p className="text-sm font-semibold text-slate-500">Chưa có video ký hiệu nào từ cộng đồng.</p>
