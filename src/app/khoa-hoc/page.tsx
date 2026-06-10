@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { BookOpen, Feather, Layers3, MessageSquareText, Puzzle, Tags } from "lucide-react";
+import { BookOpen, Brain, Feather, Layers3, Tags } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -19,18 +19,11 @@ const courses = [
     icon: Tags,
   },
   {
-    title: "Ghép từ",
-    description: "Học cách kết hợp chữ cái và dấu tiếng Việt để tạo thành từ có nghĩa.",
-    button: "Luyện ghép từ",
-    href: "/khoa-hoc/ghep-tu",
-    icon: Puzzle,
-  },
-  {
-    title: "Ghép câu",
-    description: "Luyện kết hợp các từ thành câu giao tiếp phù hợp với tình huống đời sống.",
-    button: "Luyện ghép câu",
-    href: "/khoa-hoc/ghep-cau",
-    icon: MessageSquareText,
+    title: "Luyện tập",
+    description: "Ôn lại các mục đã học, mục yêu thích và làm trắc nghiệm nhanh từ bộ từ vựng hiện có.",
+    button: "Vào luyện tập",
+    href: "/khoa-hoc/luyen-tap",
+    icon: Brain,
   },
   {
     title: "Ngữ pháp ký hiệu",
@@ -51,7 +44,7 @@ export default function CoursesPage() {
             Lộ trình học CHẠM
           </div>
           <h1 className="text-3xl font-black text-slate-950 sm:text-4xl lg:text-5xl">Khóa học</h1>
-          <p className="mt-4 text-sm font-semibold leading-7 text-slate-600 sm:text-lg sm:leading-8">Học ký hiệu theo từng cấp độ: từ bảng chữ cái, ghép từ, ghép câu đến ngữ pháp ký hiệu.</p>
+          <p className="mt-4 text-sm font-semibold leading-7 text-slate-600 sm:text-lg sm:leading-8">Học ký hiệu theo lộ trình gọn hơn: làm quen bảng chữ cái, học từ vựng theo chủ đề và tìm hiểu ngữ pháp ký hiệu.</p>
         </div>
 
         <div className="mt-8 grid gap-5 md:grid-cols-2">

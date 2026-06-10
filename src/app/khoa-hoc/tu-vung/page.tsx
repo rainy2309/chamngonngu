@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { vocabularyCourseData } from "@/data/vocabularyCourseData";
 import { vocabularyCourseTopics } from "@/data/vocabularyCourseTopics";
 import { createClient, hasSupabaseEnv } from "@/lib/supabase/client";
+import { cn } from "@/lib/utils";
 
 type VocabularyCourseItem = {
   id: string;
@@ -62,6 +63,17 @@ function toggleStorage(key: string, id: string) {
 
 function getVocabularyItemKey(item: VocabularyCourseItem, index: number) {
   return item.id || `${item.category}-${index}-${item.word_key || item.word}`;
+}
+
+function getVocabularyProgressKeys(item: VocabularyCourseItem) {
+  const categorySlug = slugifyTopic(item.category);
+  const wordSlug = slugifyTopic(item.word);
+  return [item.id, item.word_key, wordSlug, `${categorySlug}-${wordSlug}`].filter(Boolean);
+}
+
+function hasVocabularyProgress(ids: string[], item: VocabularyCourseItem) {
+  const keys = getVocabularyProgressKeys(item);
+  return ids.some((id) => keys.includes(id));
 }
 
 function slugifyTopic(value: string) {
@@ -200,12 +212,12 @@ function VocabularyDetailModal({
               </Link>
 
               <div className="grid gap-2 border-t border-blue-100 pt-3 dark:border-slate-700 sm:grid-cols-3">
-                <Button variant={learned ? "success" : "secondary"} onClick={onLearned} className="min-h-11 rounded-full text-sm">
+                <Button variant={learned ? "success" : "secondary"} onClick={onLearned} className="min-h-11 rounded-full text-sm" aria-label={learned ? "Bấm để gỡ đã học" : "Đánh dấu đã học"} title={learned ? "Bấm để gỡ đã học" : "Đánh dấu đã học"}>
                   <CheckCircle2 className="h-5 w-5" aria-hidden="true" />
                   {learned ? "Đã học" : "Đánh dấu đã học"}
                 </Button>
-                <Button variant={favorite ? "default" : "secondary"} onClick={onFavorite} className="min-h-11 rounded-full text-sm">
-                  <Bookmark className={favorite ? "h-5 w-5 fill-blue-700" : "h-5 w-5"} aria-hidden="true" />
+                <Button variant={favorite ? "default" : "secondary"} onClick={onFavorite} className={cn("min-h-11 rounded-full text-sm", favorite ? "bg-amber-500 text-white hover:bg-amber-600" : "")} aria-label={favorite ? "Bấm để gỡ yêu thích" : "Lưu yêu thích"} title={favorite ? "Bấm để gỡ yêu thích" : "Lưu yêu thích"}>
+                  <Bookmark className={favorite ? "h-5 w-5 fill-current" : "h-5 w-5"} aria-hidden="true" />
                   {favorite ? "Đã lưu yêu thích" : "Lưu yêu thích"}
                 </Button>
                 <Dialog.Close asChild>
@@ -298,8 +310,8 @@ export default function VocabularyCoursePage() {
     setFavorites(toggleStorage(favoriteKey, item.id));
   }
 
-  const selectedIsLearned = selectedItem ? learned.includes(selectedItem.word_key || selectedItem.id) : false;
-  const selectedIsFavorite = selectedItem ? favorites.includes(selectedItem.id) : false;
+  const selectedIsLearned = selectedItem ? hasVocabularyProgress(learned, selectedItem) : false;
+  const selectedIsFavorite = selectedItem ? hasVocabularyProgress(favorites, selectedItem) : false;
 
   return (
     <main className="flex-1 bg-gradient-to-b from-blue-50 via-white to-white px-4 py-8 text-slate-950 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900 dark:text-slate-50 sm:px-6 lg:px-8">
@@ -362,12 +374,29 @@ export default function VocabularyCoursePage() {
           ) : (
             <div className="grid grid-cols-[repeat(auto-fit,minmax(170px,1fr))] gap-3">
               {filteredItems.map((item, index) => {
-                const itemLearned = learned.includes(item.word_key || item.id);
-                const itemFavorite = favorites.includes(item.id);
+                const itemLearned = hasVocabularyProgress(learned, item);
+                const itemFavorite = hasVocabularyProgress(favorites, item);
 
                 return (
-                  <article key={getVocabularyItemKey(item, index)} role="button" tabIndex={0} onClick={() => setSelectedItem(item)} onKeyDown={(event) => event.key === "Enter" && setSelectedItem(item)} className="grid cursor-pointer gap-2.5 rounded-2xl border border-blue-100 bg-white p-3 shadow-sm shadow-blue-100/40 transition hover:-translate-y-0.5 hover:border-blue-300 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100 dark:border-slate-700 dark:bg-slate-900 dark:shadow-none">
+                  <article
+                    key={getVocabularyItemKey(item, index)}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => setSelectedItem(item)}
+                    onKeyDown={(event) => event.key === "Enter" && setSelectedItem(item)}
+                    className={cn(
+                      "grid cursor-pointer gap-2.5 rounded-2xl border bg-white p-3 shadow-sm transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100 dark:bg-slate-900 dark:shadow-none",
+                      itemLearned
+                        ? "border-emerald-300 bg-emerald-50/70 shadow-emerald-100/70 hover:border-emerald-400 dark:border-emerald-500/50 dark:bg-emerald-500/10"
+                        : "border-blue-100 shadow-blue-100/40 hover:border-blue-300 dark:border-slate-700",
+                      itemFavorite && !itemLearned ? "border-amber-200 bg-amber-50/50 shadow-amber-100/60 dark:border-amber-500/40 dark:bg-amber-500/10" : "",
+                    )}
+                  >
                     <div>
+                      <div className="mb-2 flex flex-wrap gap-1.5">
+                        {itemLearned ? <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-black text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-100">Đã học</span> : null}
+                        {itemFavorite ? <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-black text-amber-800 dark:bg-amber-500/20 dark:text-amber-100">Đã lưu</span> : null}
+                      </div>
                       <p className="line-clamp-2 min-h-[2.5rem] text-base font-black leading-5 text-slate-950 dark:text-white">{item.word}</p>
                       <p className="mt-1.5 w-fit rounded-full bg-blue-50 px-2.5 py-0.5 text-[11px] font-black text-blue-700 dark:bg-blue-500/15 dark:text-blue-100">{item.category}</p>
                       <p className="mt-2 line-clamp-2 text-xs font-semibold leading-5 text-slate-600 dark:text-slate-300">
@@ -375,12 +404,12 @@ export default function VocabularyCoursePage() {
                       </p>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Button type="button" size="sm" variant={itemLearned ? "success" : "secondary"} onClick={(event) => { event.stopPropagation(); markLearned(item); }} className="min-h-9 flex-1 rounded-full px-2 text-xs">
+                      <Button type="button" size="sm" variant={itemLearned ? "success" : "secondary"} onClick={(event) => { event.stopPropagation(); markLearned(item); }} className="min-h-9 flex-1 rounded-full px-2 text-xs" aria-label={itemLearned ? `Bấm để gỡ đã học ${item.word}` : `Đánh dấu đã học ${item.word}`} title={itemLearned ? "Bấm để gỡ đã học" : "Đánh dấu đã học"}>
                         <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
                         {itemLearned ? "Đã học" : "Học"}
                       </Button>
-                      <Button type="button" size="sm" variant={itemFavorite ? "default" : "secondary"} onClick={(event) => { event.stopPropagation(); saveFavorite(item); }} className="min-h-9 w-10 rounded-full px-0" aria-label={itemFavorite ? "Đã lưu yêu thích" : "Lưu yêu thích"}>
-                        <Bookmark className={itemFavorite ? "h-4 w-4 fill-blue-700" : "h-4 w-4"} aria-hidden="true" />
+                      <Button type="button" size="sm" variant={itemFavorite ? "default" : "secondary"} onClick={(event) => { event.stopPropagation(); saveFavorite(item); }} className={cn("min-h-9 w-10 rounded-full px-0", itemFavorite ? "bg-amber-500 text-white hover:bg-amber-600" : "")} aria-label={itemFavorite ? `Bấm để gỡ yêu thích ${item.word}` : `Lưu yêu thích ${item.word}`} title={itemFavorite ? "Bấm để gỡ yêu thích" : "Lưu yêu thích"}>
+                        <Bookmark className={itemFavorite ? "h-4 w-4 fill-current" : "h-4 w-4"} aria-hidden="true" />
                       </Button>
                     </div>
                   </article>
