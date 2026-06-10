@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { alphabetSignData, type AlphabetItemType, type AlphabetSignItem } from "@/data/alphabetSignData";
 import { learningStorageKeys, saveLearningItem } from "@/lib/localLearning";
 import { createClient, hasSupabaseEnv } from "@/lib/supabase/client";
+import { cn } from "@/lib/utils";
 
 const learnedAlphabetKey = "cham_learned_alphabet";
 const favoriteSignsKey = "cham_favorite_signs";
@@ -193,13 +194,19 @@ function BoardPreviewBox({ item }: { item: BoardAlphabetItem }) {
   );
 }
 
-function BoardCell({ item, learned, onClick }: { item: BoardAlphabetItem; learned: boolean; onClick: () => void }) {
+function BoardCell({ item, learned, favorite, onClick }: { item: BoardAlphabetItem; learned: boolean; favorite: boolean; onClick: () => void }) {
   return (
     <button
       type="button"
       onClick={onClick}
       aria-label={`Xem ${item.title.toLowerCase()}`}
-      className="group min-h-[132px] rounded-[14px] border border-blue-100 bg-white p-2 text-center shadow-sm shadow-blue-100/40 transition hover:-translate-y-0.5 hover:border-blue-300 hover:bg-blue-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100 min-[390px]:min-h-[144px] sm:min-h-[166px] sm:p-2.5 lg:min-h-[182px]"
+      className={cn(
+        "group min-h-[132px] rounded-[14px] border bg-white p-2 text-center shadow-sm transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100 min-[390px]:min-h-[144px] sm:min-h-[166px] sm:p-2.5 lg:min-h-[182px]",
+        learned
+          ? "border-emerald-300 bg-emerald-50/70 shadow-emerald-100/70 hover:border-emerald-400"
+          : "border-blue-100 shadow-blue-100/40 hover:border-blue-300 hover:bg-blue-50",
+        favorite && !learned ? "border-amber-200 bg-amber-50/50 shadow-amber-100/60" : "",
+      )}
     >
       <div className="relative">
         <BoardPreviewBox item={item} />
@@ -208,8 +215,17 @@ function BoardCell({ item, learned, onClick }: { item: BoardAlphabetItem; learne
             <Check className="h-3 w-3" aria-hidden="true" />
           </span>
         ) : null}
+        {favorite ? (
+          <span className="absolute -left-1 -top-1 grid h-5 w-5 place-items-center rounded-full bg-amber-500 text-white ring-2 ring-white" aria-label="Đã lưu yêu thích">
+            <Bookmark className="h-3 w-3 fill-current" aria-hidden="true" />
+          </span>
+        ) : null}
       </div>
-      <span className="mt-2 block truncate text-sm font-black leading-5 text-slate-900 group-hover:text-blue-700 sm:text-base">
+      <div className="mt-2 flex min-h-5 flex-wrap justify-center gap-1">
+        {learned ? <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-black text-emerald-800">Đã học</span> : null}
+        {favorite ? <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-black text-amber-800">Đã lưu</span> : null}
+      </div>
+      <span className="mt-1 block truncate text-sm font-black leading-5 text-slate-900 group-hover:text-blue-700 sm:text-base">
         {item.display_label}
       </span>
       {item.type === "vowel_modifier" ? (
@@ -218,6 +234,19 @@ function BoardCell({ item, learned, onClick }: { item: BoardAlphabetItem; learne
       <span className="block text-[10px] font-bold text-slate-500 sm:text-xs">{getTypeLabel(item.type)}</span>
     </button>
   );
+}
+
+function getAlphabetProgressKeys(item: BoardAlphabetItem) {
+  return [item.letter_key, item.id, item.label, item.display_label, `alphabet-${item.letter_key}`, `alphabet-${item.id}`].filter(Boolean);
+}
+
+function hasAlphabetProgress(ids: string[], item: BoardAlphabetItem) {
+  const keys = getAlphabetProgressKeys(item);
+  return ids.some((id) => keys.includes(id));
+}
+
+function getBoardItemId(letterKey: string) {
+  return `alphabet-${letterKey}`;
 }
 
 function DetailModal({
@@ -295,12 +324,12 @@ function DetailModal({
               </div>
 
               <div className="grid gap-2 border-t border-blue-100 pt-3 sm:grid-cols-3">
-                <Button variant={learned ? "success" : "secondary"} className="w-full rounded-full" onClick={onLearned}>
+                <Button variant={learned ? "success" : "secondary"} className="w-full rounded-full" onClick={onLearned} aria-label={learned ? "Bấm để gỡ đã học" : "Đánh dấu đã học"} title={learned ? "Bấm để gỡ đã học" : "Đánh dấu đã học"}>
                   <CheckCircle2 className="h-5 w-5" aria-hidden="true" />
                   {learned ? "Đã học" : "Đánh dấu đã học"}
                 </Button>
-                <Button variant={favorite ? "default" : "secondary"} className="w-full rounded-full" onClick={onFavorite}>
-                  <Bookmark className={favorite ? "h-5 w-5 fill-blue-700" : "h-5 w-5"} aria-hidden="true" />
+                <Button variant={favorite ? "default" : "secondary"} className={cn("w-full rounded-full", favorite ? "bg-amber-500 text-white hover:bg-amber-600" : "")} onClick={onFavorite} aria-label={favorite ? "Bấm để gỡ yêu thích" : "Lưu yêu thích"} title={favorite ? "Bấm để gỡ yêu thích" : "Lưu yêu thích"}>
+                  <Bookmark className={favorite ? "h-5 w-5 fill-current" : "h-5 w-5"} aria-hidden="true" />
                   {favorite ? "Đã lưu yêu thích" : "Lưu yêu thích"}
                 </Button>
                 <Dialog.Close asChild>
@@ -406,14 +435,13 @@ export default function AlphabetCoursePage() {
     [items],
   );
   const totalItems = activeItems.length;
-  const activeItemKeys = useMemo(() => new Set(activeItems.map((item) => item.letter_key)), [activeItems]);
-  const learnedActiveCount = learnedIds.filter((id) => activeItemKeys.has(id)).length;
-  const selectedIsLearned = selectedItem ? learnedIds.includes(selectedItem.letter_key) : false;
-  const selectedIsFavorite = selectedItem ? favoriteIds.includes(selectedItem.letter_key) : false;
+  const learnedActiveCount = activeItems.filter((item) => hasAlphabetProgress(learnedIds, item)).length;
+  const selectedIsLearned = selectedItem ? hasAlphabetProgress(learnedIds, selectedItem) : false;
+  const selectedIsFavorite = selectedItem ? hasAlphabetProgress(favoriteIds, selectedItem) : false;
 
   return (
     <main className="flex-1 bg-gradient-to-b from-blue-50 via-white to-white px-4 pb-8 pt-3 sm:px-6 sm:pt-4 lg:px-8">
-      <section className="mx-auto grid max-w-[1360px] gap-4 lg:grid-cols-[280px_1fr] lg:items-start xl:grid-cols-[300px_1fr]">
+      <section className="mx-auto grid max-w-[1360px] gap-4 lg:grid-cols-[280px_minmax(0,1fr)] lg:items-start xl:grid-cols-[300px_minmax(0,1fr)]">
         <aside className="rounded-2xl border border-blue-100 bg-white p-4 shadow-lg shadow-blue-100/50 lg:sticky lg:top-28">
           <p className="text-xs font-black uppercase text-blue-600">KHÓA HỌC</p>
           <h1 className="mt-1 text-2xl font-black leading-tight text-slate-950">Ký hiệu bảng chữ cái</h1>
@@ -450,9 +478,11 @@ export default function AlphabetCoursePage() {
                     <h3 className="text-lg font-black text-slate-950">{section.title}</h3>
                     <p className="mt-1 text-sm font-semibold text-slate-600">{section.description}</p>
                   </div>
-                  <div className="grid grid-cols-3 gap-2 min-[390px]:grid-cols-4 sm:grid-cols-5 md:grid-cols-6 xl:grid-cols-8">
+                  <div className={cn("grid gap-3", section.type === "vowel_modifier" ? "grid-cols-1 sm:grid-cols-3" : "grid-cols-2 min-[390px]:grid-cols-3 sm:grid-cols-4 md:grid-cols-5 xl:grid-cols-7")}>
                     {sectionItems.map((item) => (
-                      <BoardCell key={item.letter_key} item={item} learned={learnedIds.includes(item.letter_key)} onClick={() => setSelectedItem(item)} />
+                      <div key={item.letter_key} id={getBoardItemId(item.letter_key)} className="min-w-0 scroll-mt-28">
+                        <BoardCell item={item} learned={hasAlphabetProgress(learnedIds, item)} favorite={hasAlphabetProgress(favoriteIds, item)} onClick={() => setSelectedItem(item)} />
+                      </div>
                     ))}
                   </div>
                 </section>
@@ -460,6 +490,7 @@ export default function AlphabetCoursePage() {
             })}
           </div>
         </div>
+
       </section>
 
       <DetailModal

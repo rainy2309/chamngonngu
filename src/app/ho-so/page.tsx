@@ -2,13 +2,15 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Award, BookOpen, Heart, Save, Sparkles, UserRound, CheckCircle2 } from "lucide-react";
+import { ArrowRight, Award, BookOpen, Heart, KeyRound, Save, Sparkles, UserRound, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { createClient, hasSupabaseEnv, missingEnvMessage } from "@/lib/supabase/client";
 import { getBestQuizScore } from "@/lib/quiz";
 import { learningStorageKeys, readBestQuizScore, readLearningItems, type StoredLearningItem } from "@/lib/localLearning";
+import { getProgressDisplayInfo } from "@/lib/progressDisplay";
+import { readPracticeStats, type PracticeStats } from "@/lib/practiceStats";
 
 const roleLabels: Record<string, string> = {
   user: "Người dùng",
@@ -34,12 +36,25 @@ function RecentList({ items, emptyText }: { items: StoredLearningItem[]; emptyTe
 
   return (
     <div className="grid gap-2">
-      {items.slice(0, 5).map((item) => (
-        <div key={item.id} className="flex min-w-0 items-center justify-between gap-3 rounded-2xl border border-blue-100 bg-white px-4 py-3">
-          <span className="min-w-0 break-words font-bold text-slate-800">{item.label}</span>
-          <span className="whitespace-nowrap text-xs font-bold text-blue-700">{new Date(item.updatedAt).toLocaleDateString("vi-VN")}</span>
-        </div>
-      ))}
+      {items.slice(0, 5).map((item) => {
+        const display = getProgressDisplayInfo(item.id, item.label);
+
+        return (
+        <Link key={item.id} href={display.href} className="group flex min-w-0 items-start justify-between gap-3 rounded-2xl border border-blue-100 bg-white px-4 py-3 transition hover:border-blue-300 hover:bg-blue-50/60 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100">
+          <div className="min-w-0">
+            <span className="block min-w-0 break-words font-bold text-slate-800">{display.label}</span>
+            <span className="mt-1 block text-xs font-bold text-slate-500">
+              {display.typeLabel}
+              {display.category ? ` · ${display.category}` : ""}
+            </span>
+          </div>
+          <span className="flex shrink-0 items-center gap-2 whitespace-nowrap text-xs font-bold text-blue-700">
+            {new Date(item.updatedAt).toLocaleDateString("vi-VN")}
+            <ArrowRight className="h-3.5 w-3.5 transition group-hover:translate-x-0.5" aria-hidden="true" />
+          </span>
+        </Link>
+        );
+      })}
     </div>
   );
 }
@@ -54,11 +69,13 @@ export default function ProfilePage() {
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [passwordEmailLoading, setPasswordEmailLoading] = useState(false);
   const [profileTableReady, setProfileTableReady] = useState(true);
   const [learnedSigns, setLearnedSigns] = useState<StoredLearningItem[]>([]);
   const [favoriteSigns, setFavoriteSigns] = useState<StoredLearningItem[]>([]);
   const [viewedLessons, setViewedLessons] = useState<StoredLearningItem[]>([]);
   const [bestScore, setBestScore] = useState(0);
+  const [practiceStats, setPracticeStats] = useState<PracticeStats>(() => readPracticeStats());
   const [courses, setCourses] = useState<{ title: string; href: string }[]>([]);
 
   useEffect(() => {
@@ -66,6 +83,7 @@ export default function ProfilePage() {
     setFavoriteSigns(readLearningItems(learningStorageKeys.favorites));
     setViewedLessons(readLearningItems(learningStorageKeys.viewedLessons));
     setBestScore(readBestQuizScore());
+    setPracticeStats(readPracticeStats());
 
     async function loadProfile() {
       try {
@@ -175,7 +193,10 @@ export default function ProfilePage() {
     void loadProfile();
   }, []);
 
-  const hasJournal = useMemo(() => learnedSigns.length + favoriteSigns.length + viewedLessons.length + bestScore > 0, [bestScore, favoriteSigns.length, learnedSigns.length, viewedLessons.length]);
+  const hasJournal = useMemo(
+    () => learnedSigns.length + favoriteSigns.length + viewedLessons.length + bestScore + practiceStats.totalSessions > 0,
+    [bestScore, favoriteSigns.length, learnedSigns.length, practiceStats.totalSessions, viewedLessons.length],
+  );
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -199,42 +220,66 @@ export default function ProfilePage() {
     }
   }
 
+  async function sendPasswordSetupEmail() {
+    if (!email) {
+      setMessage("Chưa có email để gửi hướng dẫn đặt mật khẩu.");
+      return;
+    }
+
+    setPasswordEmailLoading(true);
+    setMessage("");
+
+    try {
+      const supabase = createClient();
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/dat-lai-mat-khau`,
+      });
+
+      if (error) console.error("Profile password reset request error:", error);
+      setMessage("Nếu email hợp lệ, hướng dẫn đặt lại mật khẩu sẽ được gửi đến hộp thư của bạn.");
+    } catch {
+      setMessage(missingEnvMessage);
+    } finally {
+      setPasswordEmailLoading(false);
+    }
+  }
+
   const statCards = [
-    { title: "Từ đã học", value: learnedSigns.length, icon: CheckCircle2 },
-    { title: "Từ yêu thích", value: favoriteSigns.length, icon: Heart },
+    { title: "Mục đã học", value: learnedSigns.length, icon: CheckCircle2 },
+    { title: "Mục yêu thích", value: favoriteSigns.length, icon: Heart },
     { title: "Bài học đã xem", value: viewedLessons.length, icon: BookOpen },
-    { title: "Điểm luyện tập cao nhất", value: bestScore, icon: Award },
+    { title: "Điểm luyện tập cao nhất", value: practiceStats.bestScore ? `${practiceStats.bestScore}/${practiceStats.bestTotal || 10}` : "0", icon: Award },
   ];
 
   return (
-    <main className="flex-1 bg-gradient-to-b from-blue-50 to-white px-4 py-8 sm:px-6 sm:py-12 lg:px-8">
-      <div className="mx-auto grid max-w-7xl gap-6 sm:gap-8">
+    <main className="flex-1 bg-gradient-to-b from-blue-50 to-white px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+      <div className="mx-auto grid max-w-7xl gap-5 sm:gap-6">
         <section>
           <p className="text-sm font-black uppercase text-blue-600">Khu vực cá nhân</p>
-          <h1 className="mt-2 text-3xl font-black text-slate-950 sm:text-4xl lg:text-5xl">Hồ sơ học tập</h1>
-          <p className="mt-3 max-w-3xl text-sm font-semibold leading-7 text-slate-600 sm:text-lg sm:leading-8">Theo dõi nhật ký học ký hiệu, từ yêu thích và thông tin tài khoản CHẠM của bạn.</p>
+          <h1 className="mt-2 text-3xl font-black text-slate-950 sm:text-4xl">Hồ sơ học tập</h1>
+          <p className="mt-2 max-w-3xl text-sm font-semibold leading-7 text-slate-600 sm:text-base">Theo dõi các mục đã học, yêu thích và kết quả luyện tập của bạn.</p>
         </section>
 
-        <section className="grid gap-5">
+        <section className="grid gap-4">
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
-              <h2 className="text-2xl font-black text-slate-950">Nhật ký học tập</h2>
-              <p className="mt-1 font-semibold text-slate-600">Dữ liệu MVP được lưu trên trình duyệt và điểm luyện tập có thể đồng bộ Supabase nếu đã kết nối.</p>
+              <h2 className="text-xl font-black text-slate-950 sm:text-2xl">Nhật ký học tập</h2>
+              <p className="mt-1 text-sm font-semibold text-slate-600">Các hoạt động gần đây và tiến độ học của bạn.</p>
             </div>
             <Button asChild className="w-full rounded-full sm:w-auto">
-              <Link href="/khoa-hoc">Tiếp tục học</Link>
+              <Link href="/khoa-hoc/luyen-tap">Đi tới Luyện tập</Link>
             </Button>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             {statCards.map((card) => (
-              <Card key={card.title} className="rounded-[1.5rem] border-blue-100 shadow-lg shadow-blue-100/50">
-                <CardContent className="flex items-center justify-between gap-4 p-5">
+              <Card key={card.title} className="rounded-[1.35rem] border-blue-100 shadow-md shadow-blue-100/40">
+                <CardContent className="flex items-center justify-between gap-4 p-4">
                   <div>
                     <p className="text-sm font-black text-slate-500">{card.title}</p>
-                    <p className="mt-2 text-4xl font-black text-blue-700">{card.value}</p>
+                    <p className="mt-1 text-3xl font-black text-blue-700">{card.value}</p>
                   </div>
-                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50 text-blue-700">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-blue-50 text-blue-700">
                     <card.icon aria-hidden="true" />
                   </div>
                 </CardContent>
@@ -249,21 +294,21 @@ export default function ProfilePage() {
             </div>
           ) : null}
 
-          <div className="grid gap-4 lg:grid-cols-3">
+          <div className="grid gap-4 lg:grid-cols-4">
             <Card className="rounded-[1.75rem] border-blue-100 shadow-lg shadow-blue-100/50">
               <CardHeader>
-                <CardTitle>Từ đã học gần đây</CardTitle>
+                <CardTitle>Mục đã học gần đây</CardTitle>
               </CardHeader>
               <CardContent>
-                <RecentList items={learnedSigns} emptyText="Bạn chưa đánh dấu từ nào là đã học." />
+                <RecentList items={learnedSigns} emptyText="Bạn chưa đánh dấu mục nào là đã học." />
               </CardContent>
             </Card>
             <Card className="rounded-[1.75rem] border-blue-100 shadow-lg shadow-blue-100/50">
               <CardHeader>
-                <CardTitle>Từ yêu thích gần đây</CardTitle>
+                <CardTitle>Mục yêu thích gần đây</CardTitle>
               </CardHeader>
               <CardContent>
-                <RecentList items={favoriteSigns} emptyText="Bạn chưa lưu từ yêu thích nào." />
+                <RecentList items={favoriteSigns} emptyText="Bạn chưa lưu mục yêu thích nào." />
               </CardContent>
             </Card>
             <Card className="rounded-[1.75rem] border-blue-100 shadow-lg shadow-blue-100/50">
@@ -279,6 +324,30 @@ export default function ProfilePage() {
                   ))
                 ) : (
                   <p className="text-sm font-semibold text-slate-500 rounded-3xl bg-slate-50 p-4">Không có bài học khả dụng.</p>
+                )}
+              </CardContent>
+            </Card>
+            <Card className="rounded-[1.75rem] border-blue-100 shadow-lg shadow-blue-100/50">
+              <CardHeader>
+                <CardTitle>Luyện tập gần đây</CardTitle>
+              </CardHeader>
+              <CardContent className="grid gap-2">
+                {practiceStats.recentScores.length ? (
+                  practiceStats.recentScores.slice(0, 4).map((attempt) => (
+                    <Link key={`${attempt.practicedAt}-${attempt.score}`} href="/khoa-hoc/luyen-tap" className="rounded-2xl border border-blue-100 bg-white px-4 py-3 transition hover:border-blue-300 hover:bg-blue-50">
+                      <span className="block font-black text-slate-900">{attempt.score}/{attempt.total} câu</span>
+                      <span className="mt-1 block text-xs font-bold text-slate-500">
+                        {attempt.mode} · {new Date(attempt.practicedAt).toLocaleDateString("vi-VN")}
+                      </span>
+                    </Link>
+                  ))
+                ) : (
+                  <div className="grid gap-3 rounded-3xl bg-slate-50 p-4">
+                    <p className="text-sm font-semibold text-slate-500">Bạn chưa luyện tập lần nào.</p>
+                    <Button asChild size="sm" className="rounded-full">
+                      <Link href="/khoa-hoc/luyen-tap">Đi tới Luyện tập</Link>
+                    </Button>
+                  </div>
                 )}
               </CardContent>
             </Card>
@@ -323,6 +392,20 @@ export default function ProfilePage() {
                   <span className="font-bold text-slate-800">Vai trò</span>
                   <Input value={roleLabels[role] ?? role} disabled />
                 </label>
+                <div className="rounded-[1.5rem] border border-blue-100 bg-blue-50/60 p-4">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <p className="font-black text-slate-950">Đăng nhập bằng email</p>
+                      <p className="mt-1 text-sm font-semibold leading-6 text-slate-600">
+                        Nếu bạn thường dùng Google, bạn vẫn có thể đặt mật khẩu để đăng nhập bằng email.
+                      </p>
+                    </div>
+                    <Button type="button" variant="outline" disabled={passwordEmailLoading || !email} onClick={sendPasswordSetupEmail} className="min-h-11 shrink-0 rounded-full bg-white">
+                      <KeyRound className="h-4 w-4" aria-hidden="true" />
+                      {passwordEmailLoading ? "Đang gửi..." : "Đặt hoặc đổi mật khẩu"}
+                    </Button>
+                  </div>
+                </div>
                 {message ? <p className="rounded-2xl bg-blue-50 p-3 font-semibold text-blue-900">{message}</p> : null}
                 <Button type="submit" disabled={saving || !userId} className="w-full rounded-full sm:w-auto">
                   <Save className="h-5 w-5" aria-hidden="true" />

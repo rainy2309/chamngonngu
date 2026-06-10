@@ -16,8 +16,7 @@ const mainLinks = [
 const courseLinks = [
   { href: "/khoa-hoc/bang-chu-cai", label: "Ký hiệu bảng chữ cái" },
   { href: "/khoa-hoc/tu-vung", label: "Từ vựng" },
-  { href: "/khoa-hoc/ghep-tu", label: "Ghép từ" },
-  { href: "/khoa-hoc/ghep-cau", label: "Ghép câu" },
+  { href: "/khoa-hoc/luyen-tap", label: "Luyện tập" },
   { href: "/khoa-hoc/ngu-phap", label: "Ngữ pháp" },
 ];
 

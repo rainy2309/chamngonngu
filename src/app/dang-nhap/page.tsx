@@ -11,6 +11,9 @@ import { Input } from "@/components/ui/input";
 import { googleLoginErrorMessage, signInWithGoogle } from "@/lib/auth";
 import { createClient, missingEnvMessage } from "@/lib/supabase/client";
 
+const safeLoginErrorMessage =
+  "Không thể đăng nhập. Nếu bạn từng đăng nhập bằng Google, hãy dùng nút Google hoặc đặt mật khẩu mới cho email này.";
+
 export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
@@ -58,7 +61,7 @@ export default function LoginPage() {
       const supabase = createClient();
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) {
-        setMessage("Không thể đăng nhập. Vui lòng kiểm tra email hoặc mật khẩu.");
+        setMessage(safeLoginErrorMessage);
         return;
       }
       router.replace("/dashboard");
@@ -105,6 +108,11 @@ export default function LoginPage() {
               <span className="font-bold text-slate-800">Mật khẩu</span>
               <Input type="password" value={password} onChange={(event) => setPassword(event.target.value)} required autoComplete="current-password" />
             </label>
+            <div className="-mt-1 text-right">
+              <Link href="/dat-lai-mat-khau" className="text-sm font-bold text-blue-700 hover:text-blue-900">
+                Quên hoặc chưa có mật khẩu?
+              </Link>
+            </div>
             {message ? <p className="rounded-2xl bg-orange-50 p-3 font-semibold text-orange-900">{message}</p> : null}
             <Button type="submit" disabled={loading || googleLoading} className="min-h-12 rounded-full">
               {loading ? "Đang đăng nhập..." : "Đăng nhập"}

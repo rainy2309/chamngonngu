@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { BookOpen, Bookmark, LibraryBig, Loader2, MessagesSquare, SpellCheck } from "lucide-react";
+import { BookOpen, Bookmark, Brain, LibraryBig, Loader2, SpellCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { vocabularyCourseData } from "@/data/vocabularyCourseData";
 import { createClient, hasSupabaseEnv } from "@/lib/supabase/client";
@@ -39,10 +39,10 @@ const quickPaths = [
     icon: SpellCheck,
   },
   {
-    title: "Cộng đồng",
-    description: "Giao tiếp hòa nhập hơn.",
-    href: "/cong-dong",
-    icon: MessagesSquare,
+    title: "Luyện tập",
+    description: "Ôn flashcard và làm trắc nghiệm nhanh.",
+    href: "/khoa-hoc/luyen-tap",
+    icon: Brain,
   },
 ];
 
