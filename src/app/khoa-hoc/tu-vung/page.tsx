@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import * as Dialog from "@radix-ui/react-dialog";
 import { Bookmark, CheckCircle2, ImageIcon, Loader2, Search, Sparkles, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -61,6 +62,18 @@ function toggleStorage(key: string, id: string) {
 
 function getVocabularyItemKey(item: VocabularyCourseItem, index: number) {
   return item.id || `${item.category}-${index}-${item.word_key || item.word}`;
+}
+
+function slugifyTopic(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/g, "d")
+    .replace(/Đ/g, "D")
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
 }
 
 function MediaPreview({ item }: { item: VocabularyCourseItem }) {
@@ -182,6 +195,10 @@ function VocabularyDetailModal({
                 </section>
               ) : null}
 
+              <Link href={`/tu-dien?q=${encodeURIComponent(item.word)}`} className="w-fit rounded-full bg-blue-50 px-3 py-2 text-sm font-black text-blue-700 hover:bg-blue-100 dark:bg-blue-500/15 dark:text-blue-100">
+                Xem trong từ điển
+              </Link>
+
               <div className="grid gap-2 border-t border-blue-100 pt-3 dark:border-slate-700 sm:grid-cols-3">
                 <Button variant={learned ? "success" : "secondary"} onClick={onLearned} className="min-h-11 rounded-full text-sm">
                   <CheckCircle2 className="h-5 w-5" aria-hidden="true" />
@@ -215,6 +232,11 @@ export default function VocabularyCoursePage() {
   useEffect(() => {
     setLearned(readStorage(learnedKey));
     setFavorites(readStorage(favoriteKey));
+    const topicParam = new URLSearchParams(window.location.search).get("topic");
+    if (topicParam) {
+      const matchedTopic = vocabularyCourseTopics.find((topic) => topic.slug === topicParam || slugifyTopic(topic.name) === topicParam);
+      if (matchedTopic) setActiveTopic(matchedTopic.name);
+    }
 
     async function loadVocabulary() {
       if (!hasSupabaseEnv()) {
