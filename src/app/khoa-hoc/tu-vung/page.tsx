@@ -235,7 +235,10 @@ export default function VocabularyCoursePage() {
     const topicParam = new URLSearchParams(window.location.search).get("topic");
     if (topicParam) {
       const matchedTopic = vocabularyCourseTopics.find((topic) => topic.slug === topicParam || slugifyTopic(topic.name) === topicParam);
-      if (matchedTopic) setActiveTopic(matchedTopic.name);
+      if (matchedTopic) {
+        setActiveTopic(matchedTopic.name);
+        window.setTimeout(() => document.getElementById("vocabulary-list")?.scrollIntoView({ behavior: "smooth", block: "start" }), 100);
+      }
     }
 
     async function loadVocabulary() {
@@ -347,7 +350,7 @@ export default function VocabularyCoursePage() {
           </div>
         </div>
 
-        <section className="mt-6">
+        <section id="vocabulary-list" className="mt-6 scroll-mt-24">
           {loading ? (
             <div className="flex justify-center rounded-[2rem] bg-white py-16 dark:bg-slate-900">
               <Loader2 className="h-9 w-9 animate-spin text-blue-700" aria-hidden="true" />

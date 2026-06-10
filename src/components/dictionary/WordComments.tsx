@@ -23,7 +23,7 @@ const roleBadgeColors: Record<string, string> = {
   admin: "bg-amber-50 text-amber-700",
 };
 
-export function WordComments({ wordId }: { wordId: string }) {
+export function WordComments({ wordId, compact = false }: { wordId: string; compact?: boolean }) {
   const [comments, setComments] = useState<Comment[]>([]);
   const [newComment, setNewComment] = useState("");
   const [loading, setLoading] = useState(false);
@@ -128,8 +128,8 @@ export function WordComments({ wordId }: { wordId: string }) {
   }
 
   return (
-    <div className="rounded-2xl border border-blue-100 bg-white p-4 sm:p-5">
-      <h3 className="mb-4 flex items-center gap-2 text-base font-black text-slate-950">
+    <div className={`rounded-2xl border border-blue-100 bg-white ${compact ? "p-3" : "p-4 sm:p-5"}`}>
+      <h3 className={`${compact ? "mb-3" : "mb-4"} flex items-center gap-2 text-base font-black text-slate-950`}>
         <MessageCircle className="h-5 w-5 text-blue-500" aria-hidden="true" />
         Bình luận từ cộng đồng {comments.length > 0 ? `(${comments.length})` : ""}
       </h3>
