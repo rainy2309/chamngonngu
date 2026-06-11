@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, Award, BookOpen, Heart, KeyRound, Save, Sparkles, UserRound, CheckCircle2 } from "lucide-react";
+import { ArrowRight, Award, Heart, KeyRound, Save, Sparkles, UserRound, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -93,19 +93,15 @@ export default function ProfilePage() {
   const [profileTableReady, setProfileTableReady] = useState(true);
   const [learnedSigns, setLearnedSigns] = useState<StoredLearningItem[]>([]);
   const [favoriteSigns, setFavoriteSigns] = useState<StoredLearningItem[]>([]);
-  const [viewedLessons, setViewedLessons] = useState<StoredLearningItem[]>([]);
   const [bestScore, setBestScore] = useState(0);
   const [practiceStats, setPracticeStats] = useState<PracticeStats>(() => readPracticeStats());
-  const [courses, setCourses] = useState<{ title: string; href: string }[]>([]);
 
   useEffect(() => {
     const initialLearned = readLearningItems(learningStorageKeys.learned);
     const initialFavorites = readLearningItems(learningStorageKeys.favorites);
-    const initialViewedLessons = readLearningItems(learningStorageKeys.viewedLessons);
 
     setLearnedSigns(initialLearned);
     setFavoriteSigns(initialFavorites);
-    setViewedLessons(initialViewedLessons);
     setBestScore(readBestQuizScore());
     setPracticeStats(readPracticeStats());
 
@@ -207,44 +203,9 @@ export default function ProfilePage() {
             setProfileTableReady(false);
           }
         }
-
-        // Fetch lessons dynamically
-        try {
-          const { data: dbLessons } = await supabase
-            .from("lessons")
-            .select("id, topic")
-            .eq("status", "published")
-            .order("sort_order")
-            .limit(4);
-          if (dbLessons && dbLessons.length > 0) {
-            setCourses(dbLessons.map((l: any) => ({
-              title: l.topic,
-              href: `/lessons/${l.id}`
-            })));
-          } else {
-            throw new Error("No lessons");
-          }
-        } catch {
-          if (process.env.NODE_ENV === "development") {
-            setCourses([
-              { title: "Chào hỏi cơ bản", href: "/khoa-hoc/ghep-cau" },
-              { title: "Gia đình", href: "/tu-dien" },
-              { title: "Số đếm", href: "/khoa-hoc/bang-chu-cai" },
-              { title: "Cảm xúc", href: "/khoa-hoc/ghep-tu" },
-            ]);
-          }
-        }
       } catch {
         setMessage("Chưa kết nối bảng hồ sơ. Thông tin đang hiển thị từ tài khoản đăng nhập.");
         setProfileTableReady(false);
-        if (process.env.NODE_ENV === "development") {
-          setCourses([
-            { title: "Chào hỏi cơ bản", href: "/khoa-hoc/ghep-cau" },
-            { title: "Gia đình", href: "/tu-dien" },
-            { title: "Số đếm", href: "/khoa-hoc/bang-chu-cai" },
-            { title: "Cảm xúc", href: "/khoa-hoc/ghep-tu" },
-          ]);
-        }
       } finally {
         setLoading(false);
       }
@@ -254,8 +215,8 @@ export default function ProfilePage() {
   }, []);
 
   const hasJournal = useMemo(
-    () => learnedSigns.length + favoriteSigns.length + viewedLessons.length + bestScore + practiceStats.totalSessions > 0,
-    [bestScore, favoriteSigns.length, learnedSigns.length, practiceStats.totalSessions, viewedLessons.length],
+    () => learnedSigns.length + favoriteSigns.length + bestScore + practiceStats.totalSessions > 0,
+    [bestScore, favoriteSigns.length, learnedSigns.length, practiceStats.totalSessions],
   );
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -307,7 +268,6 @@ export default function ProfilePage() {
   const statCards = [
     { title: "Mục đã học", value: learnedSigns.length, icon: CheckCircle2 },
     { title: "Mục yêu thích", value: favoriteSigns.length, icon: Heart },
-    { title: "Bài học đã xem", value: viewedLessons.length, icon: BookOpen },
     { title: "Điểm luyện tập cao nhất", value: practiceStats.bestScore ? `${practiceStats.bestScore}/${practiceStats.bestTotal || 10}` : "0", icon: Award },
   ];
 
@@ -331,7 +291,7 @@ export default function ProfilePage() {
             </Button>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid gap-4 sm:grid-cols-3">
             {statCards.map((card) => (
               <Card key={card.title} className="rounded-[1.35rem] border-blue-100 shadow-md shadow-blue-100/40">
                 <CardContent className="flex items-center justify-between gap-4 p-4">
@@ -354,10 +314,10 @@ export default function ProfilePage() {
             </div>
           ) : null}
 
-          <div className="grid gap-4 lg:grid-cols-4">
+          <div className="grid gap-4 lg:grid-cols-3">
             <Card className="rounded-[1.75rem] border-blue-100 shadow-lg shadow-blue-100/50">
               <CardHeader>
-                <CardTitle>Mục đã học gần đây</CardTitle>
+                <CardTitle>Mục đã học</CardTitle>
               </CardHeader>
               <CardContent>
                 <RecentList items={learnedSigns} emptyText="Bạn chưa đánh dấu mục nào là đã học." />
@@ -365,26 +325,10 @@ export default function ProfilePage() {
             </Card>
             <Card className="rounded-[1.75rem] border-blue-100 shadow-lg shadow-blue-100/50">
               <CardHeader>
-                <CardTitle>Mục yêu thích gần đây</CardTitle>
+                <CardTitle>Mục yêu thích</CardTitle>
               </CardHeader>
               <CardContent>
                 <RecentList items={favoriteSigns} emptyText="Bạn chưa lưu mục yêu thích nào." />
-              </CardContent>
-            </Card>
-            <Card className="rounded-[1.75rem] border-blue-100 shadow-lg shadow-blue-100/50">
-              <CardHeader>
-                <CardTitle>Khóa học đang tiếp tục</CardTitle>
-              </CardHeader>
-              <CardContent className="grid gap-2">
-                {courses.length > 0 ? (
-                  courses.map((course) => (
-                    <Link key={course.title} href={course.href} className="rounded-2xl border border-blue-100 bg-blue-50/60 px-4 py-3 font-bold text-blue-800 hover:bg-blue-100">
-                      {course.title}
-                    </Link>
-                  ))
-                ) : (
-                  <p className="text-sm font-semibold text-slate-500 rounded-3xl bg-slate-50 p-4">Không có bài học khả dụng.</p>
-                )}
               </CardContent>
             </Card>
             <Card className="rounded-[1.75rem] border-blue-100 shadow-lg shadow-blue-100/50">
@@ -397,7 +341,7 @@ export default function ProfilePage() {
                     <Link key={`${attempt.practicedAt}-${attempt.score}`} href="/khoa-hoc/luyen-tap" className="rounded-2xl border border-blue-100 bg-white px-4 py-3 transition hover:border-blue-300 hover:bg-blue-50">
                       <span className="block font-black text-slate-900">{attempt.score}/{attempt.total} câu</span>
                       <span className="mt-1 block text-xs font-bold text-slate-500">
-                        {attempt.mode} · {new Date(attempt.practicedAt).toLocaleDateString("vi-VN")}
+                        {attempt.topic ? `${attempt.topic} · ` : ""}{attempt.mode} · {new Date(attempt.practicedAt).toLocaleDateString("vi-VN")}
                       </span>
                     </Link>
                   ))

@@ -82,7 +82,7 @@ export default function CommunityPage() {
             <div>
               <h2 className="text-2xl font-black">Tham gia cộng đồng CHẠM</h2>
               <p className="mt-2 max-w-4xl text-sm font-semibold leading-7 text-blue-50 sm:text-base">
-                Theo dõi fanpage của CHẠM để cập nhật từ vựng mới, video minh họa ký hiệu và các hoạt động lan tỏa giao tiếp thân thiện với người khiếm thính.
+                Theo dõi fanpage của CHẠM để cập nhật từ vựng mới, video minh họa ký hiệu và các hoạt động lan tỏa giao tiếp thân thiện với người điếc.
               </p>
             </div>
             <a

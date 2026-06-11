@@ -15,7 +15,7 @@ export default function Home() {
           <p className="text-xs font-black uppercase text-blue-600 dark:text-blue-300">Về dự án</p>
           <h2 className="mt-1 text-2xl font-black text-slate-950 dark:text-white">Về CHẠM</h2>
           <p className="mt-3 text-sm font-semibold leading-7 text-slate-600 dark:text-slate-300 sm:text-base">
-            CHẠM là dự án hỗ trợ học ngôn ngữ ký hiệu Việt Nam thông qua từ vựng, bài học trực quan và hoạt động luyện tập đơn giản. Dự án hướng đến người mới học, sinh viên và cộng đồng muốn giao tiếp thân thiện hơn với người khiếm thính.
+            CHẠM là dự án hỗ trợ học ngôn ngữ ký hiệu Việt Nam thông qua từ vựng, bài học trực quan và hoạt động luyện tập đơn giản. Dự án hướng đến người mới học, sinh viên và cộng đồng muốn giao tiếp thân thiện hơn với người điếc.
           </p>
           <p className="mt-3 text-sm font-semibold leading-7 text-blue-700 dark:text-blue-200">
             Được thực hiện bởi nhóm sinh viên với mục tiêu lan tỏa sự thấu hiểu và kết nối.
