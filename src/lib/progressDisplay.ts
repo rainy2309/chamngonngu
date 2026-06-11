@@ -62,6 +62,39 @@ function isUuidLike(value: string) {
 
 const displayIndex = new Map<string, ProgressDisplayInfo>();
 
+const readableFallbacks: Record<string, ProgressDisplayInfo> = {
+  "an-uong-an": { label: "Ăn", typeLabel: "Từ vựng", category: "Ăn uống", href: "/tu-dien?q=%C4%82n" },
+  "an-uong-uong": { label: "Uống", typeLabel: "Từ vựng", category: "Ăn uống", href: "/tu-dien?q=U%E1%BB%91ng" },
+  "an-uong-com": { label: "Cơm", typeLabel: "Từ vựng", category: "Ăn uống", href: "/tu-dien?q=C%C6%A1m" },
+  "an-uong-an-com-chua": { label: "Ăn cơm chưa?", typeLabel: "Từ vựng", category: "Ăn uống", href: "/tu-dien?q=%C4%82n%20c%C6%A1m%20ch%C6%B0a%3F" },
+  "uong-an-com-chua": { label: "Ăn cơm chưa?", typeLabel: "Từ vựng", category: "Ăn uống", href: "/tu-dien?q=%C4%82n%20c%C6%A1m%20ch%C6%B0a%3F" },
+  "alphabet-aw": { label: "Ă", typeLabel: "Bảng chữ cái", category: "Biến thể nguyên âm", href: "/khoa-hoc/bang-chu-cai?letter=breve_group" },
+  "alphabet-aa": { label: "Â", typeLabel: "Bảng chữ cái", category: "Biến thể nguyên âm", href: "/khoa-hoc/bang-chu-cai?letter=circumflex_group" },
+  "alphabet-ee": { label: "Ê", typeLabel: "Bảng chữ cái", category: "Biến thể nguyên âm", href: "/khoa-hoc/bang-chu-cai?letter=circumflex_group" },
+  "alphabet-oo": { label: "Ô", typeLabel: "Bảng chữ cái", category: "Biến thể nguyên âm", href: "/khoa-hoc/bang-chu-cai?letter=circumflex_group" },
+  "alphabet-ow": { label: "Ơ", typeLabel: "Bảng chữ cái", category: "Biến thể nguyên âm", href: "/khoa-hoc/bang-chu-cai?letter=horn_group" },
+  "alphabet-uw": { label: "Ư", typeLabel: "Bảng chữ cái", category: "Biến thể nguyên âm", href: "/khoa-hoc/bang-chu-cai?letter=horn_group" },
+  "alphabet-aeo": { label: "Â / Ê / Ô", typeLabel: "Bảng chữ cái", category: "Biến thể nguyên âm", href: "/khoa-hoc/bang-chu-cai?letter=circumflex_group" },
+  "alphabet-uo": { label: "Ư / Ơ", typeLabel: "Bảng chữ cái", category: "Biến thể nguyên âm", href: "/khoa-hoc/bang-chu-cai?letter=horn_group" },
+};
+
+function isReadableVietnameseLabel(value?: string) {
+  if (!value) return false;
+  const trimmed = value.trim();
+  if (!trimmed || isUuidLike(trimmed)) return false;
+  if (/^(alphabet|letter|vocab|dictionary)-/i.test(trimmed)) return false;
+  if (/^[a-z0-9]+(?:-[a-z0-9]+)+$/i.test(trimmed)) return false;
+  return /[^\w-]|[À-ỹĐđ]/.test(trimmed);
+}
+
+function addDisplayKeys(info: ProgressDisplayInfo, keys: Array<string | undefined>) {
+  keys.filter(Boolean).forEach((key) => {
+    if (!key) return;
+    displayIndex.set(key, info);
+    displayIndex.set(slugify(key), info);
+  });
+}
+
 for (const item of vocabularyCourseData) {
   const info: ProgressDisplayInfo = {
     label: item.word,
@@ -71,7 +104,8 @@ for (const item of vocabularyCourseData) {
   };
   const topicSlug = slugify(item.category);
   const wordSlug = slugify(item.word);
-  [item.id, item.word_key, wordSlug, `${topicSlug}-${wordSlug}`].filter(Boolean).forEach((key) => displayIndex.set(key, info));
+  const idWithoutOrdinal = item.id.replace(new RegExp(`^${topicSlug}-\\d+-`), `${topicSlug}-`);
+  addDisplayKeys(info, [item.id, item.word_key, wordSlug, `${topicSlug}-${wordSlug}`, idWithoutOrdinal]);
 }
 
 for (const item of signDictionaryData) {
@@ -81,7 +115,9 @@ for (const item of signDictionaryData) {
     category: item.category,
     href: `/tu-dien?q=${encodeURIComponent(item.word)}`,
   };
-  [item.id, item.normalizedWord, slugify(item.word)].filter(Boolean).forEach((key) => displayIndex.set(key, info));
+  const categorySlug = slugify(item.category);
+  const wordSlug = slugify(item.word);
+  addDisplayKeys(info, [item.id, item.normalizedWord, wordSlug, `${categorySlug}-${wordSlug}`]);
 }
 
 for (const item of alphabetSignData) {
@@ -91,12 +127,16 @@ for (const item of alphabetSignData) {
     category: item.type === "vowel_modifier" ? "Biến thể nguyên âm" : item.type === "letter" ? "Chữ cái" : undefined,
     href: `/khoa-hoc/bang-chu-cai?letter=${encodeURIComponent(item.letter_key)}`,
   };
-  [item.id, item.letter_key, `alphabet-${item.letter_key}`, slugify(item.display_label), slugify(item.label)].filter(Boolean).forEach((key) => displayIndex.set(key, info));
+  addDisplayKeys(info, [item.id, item.letter_key, `alphabet-${item.letter_key}`, slugify(item.display_label), slugify(item.label)]);
 }
 
 for (const [key, info] of Object.entries(knownAlphabetLabels)) {
   displayIndex.set(key, info);
   displayIndex.set(`alphabet-${key}`, info);
+}
+
+for (const [key, info] of Object.entries(readableFallbacks)) {
+  addDisplayKeys(info, [key, stripKnownPrefix(key)]);
 }
 
 export function getProgressDisplayInfo(rawId: string, rawLabel?: string): ProgressDisplayInfo {
@@ -110,6 +150,14 @@ export function getProgressDisplayInfo(rawId: string, rawLabel?: string): Progre
 
     const normalized = displayIndex.get(slugify(candidate));
     if (normalized) return normalized;
+  }
+
+  if (isReadableVietnameseLabel(rawLabel) && rawLabel) {
+    return {
+      label: rawLabel.trim(),
+      typeLabel: "Mục học",
+      href: "/tu-dien",
+    };
   }
 
   if (isUuidLike(rawId) || (rawLabel && isUuidLike(rawLabel))) {

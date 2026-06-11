@@ -22,7 +22,8 @@ export function getVietnameseFirstLetter(text: string): string {
 }
 
 export function getDictionaryLetterId(letter: string): string {
-  return letter === "Đ" ? "dictionary-letter-DD" : `dictionary-letter-${letter}`;
+  const key = letter === "Đ" ? "dd" : removeVietnameseTones(letter).toLowerCase();
+  return `dictionary-section-${key}`;
 }
 
 export function groupDictionaryByLetter<T extends { word: string }>(items: T[]) {

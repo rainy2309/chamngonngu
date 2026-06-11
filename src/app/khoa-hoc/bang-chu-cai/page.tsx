@@ -171,22 +171,31 @@ function DetailMediaBox({ item }: { item: BoardAlphabetItem }) {
 function BoardPreviewBox({ item }: { item: BoardAlphabetItem }) {
   const [failed, setFailed] = useState(false);
   const canShowBoardImage = Boolean(item.board_image_url && !failed);
+  const isVowelModifier = item.type === "vowel_modifier";
 
   return (
-    <div className="relative flex h-20 w-full items-center justify-center overflow-hidden rounded-xl bg-white text-blue-800 min-[390px]:h-24 sm:h-28 lg:h-32">
+    <div
+      className={cn(
+        "relative flex w-full items-center justify-center overflow-hidden rounded-xl bg-white text-blue-800 dark:bg-slate-900 dark:text-blue-100",
+        isVowelModifier ? "h-24 min-[390px]:h-28 sm:h-32 lg:h-32" : "h-20 min-[390px]:h-24 sm:h-28 lg:h-32",
+      )}
+    >
       {canShowBoardImage ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
           src={item.board_image_url ?? ""}
           alt={item.board_image_alt || `Minh họa ${item.display_label}`}
-          className="max-h-[72px] w-full object-contain px-1 py-1 min-[390px]:max-h-[84px] sm:max-h-[100px] lg:max-h-[112px]"
+          className={cn(
+            "w-full object-contain px-1 py-1",
+            isVowelModifier ? "max-h-[86px] min-[390px]:max-h-[100px] sm:max-h-[112px] lg:max-h-[118px]" : "max-h-[72px] min-[390px]:max-h-[84px] sm:max-h-[100px] lg:max-h-[112px]",
+          )}
           onError={() => setFailed(true)}
         />
       ) : (
-        <div className="grid h-full w-full place-items-center rounded-xl bg-slate-50/80 text-center">
+        <div className="grid h-full w-full place-items-center rounded-xl bg-slate-50/80 text-center dark:bg-slate-800">
           <div className="grid place-items-center gap-1">
             <ImageIcon className="h-6 w-6 text-blue-300 sm:h-7 sm:w-7" aria-hidden="true" />
-            <span className="text-[11px] font-black text-blue-700 sm:text-xs">Minh họa</span>
+            <span className="text-[11px] font-black text-blue-700 dark:text-blue-100 sm:text-xs">Minh họa</span>
           </div>
         </div>
       )}
@@ -201,11 +210,12 @@ function BoardCell({ item, learned, favorite, onClick }: { item: BoardAlphabetIt
       onClick={onClick}
       aria-label={`Xem ${item.title.toLowerCase()}`}
       className={cn(
-        "group min-h-[132px] rounded-[14px] border bg-white p-2 text-center shadow-sm transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100 min-[390px]:min-h-[144px] sm:min-h-[166px] sm:p-2.5 lg:min-h-[182px]",
+        "group rounded-[14px] border bg-white p-2 text-center shadow-sm transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100 dark:bg-slate-900 dark:focus-visible:ring-blue-500/30",
+        item.type === "vowel_modifier" ? "min-h-[158px] min-[390px]:min-h-[174px] sm:min-h-[190px] sm:p-2.5 lg:min-h-[194px]" : "min-h-[132px] min-[390px]:min-h-[144px] sm:min-h-[166px] sm:p-2.5 lg:min-h-[182px]",
         learned
-          ? "border-emerald-300 bg-emerald-50/70 shadow-emerald-100/70 hover:border-emerald-400"
-          : "border-blue-100 shadow-blue-100/40 hover:border-blue-300 hover:bg-blue-50",
-        favorite && !learned ? "border-amber-200 bg-amber-50/50 shadow-amber-100/60" : "",
+          ? "border-emerald-300 bg-emerald-50/70 shadow-emerald-100/70 hover:border-emerald-400 dark:border-emerald-500/50 dark:bg-emerald-500/10 dark:shadow-none"
+          : "border-blue-100 shadow-blue-100/40 hover:border-blue-300 hover:bg-blue-50 dark:border-slate-700 dark:shadow-none dark:hover:border-blue-500/60 dark:hover:bg-blue-500/10",
+        favorite && !learned ? "border-amber-200 bg-amber-50/50 shadow-amber-100/60 dark:border-amber-500/50 dark:bg-amber-500/10 dark:shadow-none" : "",
       )}
     >
       <div className="relative">
@@ -221,17 +231,20 @@ function BoardCell({ item, learned, favorite, onClick }: { item: BoardAlphabetIt
           </span>
         ) : null}
       </div>
-      <div className="mt-2 flex min-h-5 flex-wrap justify-center gap-1">
+      <div className={cn("flex min-h-5 flex-wrap justify-center gap-1", item.type === "vowel_modifier" ? "mt-1.5" : "mt-2")}>
         {learned ? <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-black text-emerald-800">Đã học</span> : null}
         {favorite ? <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-black text-amber-800">Đã lưu</span> : null}
       </div>
-      <span className="mt-1 block truncate text-sm font-black leading-5 text-slate-900 group-hover:text-blue-700 sm:text-base">
+      <span
+        className={cn(
+          "block text-sm font-black leading-5 text-slate-900 group-hover:text-blue-700 dark:text-white dark:group-hover:text-blue-100 sm:text-base",
+          item.type === "vowel_modifier" ? "mt-0.5" : "mt-1",
+          item.type === "vowel_modifier" ? "whitespace-normal break-words" : "truncate",
+        )}
+      >
         {item.display_label}
       </span>
-      {item.type === "vowel_modifier" ? (
-        <span className="mt-0.5 block truncate text-[10px] font-bold text-blue-700 sm:text-xs">{item.explanation}</span>
-      ) : null}
-      <span className="block text-[10px] font-bold text-slate-500 sm:text-xs">{getTypeLabel(item.type)}</span>
+      <span className="mt-0.5 block text-[10px] font-bold text-slate-500 dark:text-slate-400 sm:text-xs">{getTypeLabel(item.type)}</span>
     </button>
   );
 }
@@ -478,7 +491,7 @@ export default function AlphabetCoursePage() {
                     <h3 className="text-lg font-black text-slate-950">{section.title}</h3>
                     <p className="mt-1 text-sm font-semibold text-slate-600">{section.description}</p>
                   </div>
-                  <div className={cn("grid gap-3", section.type === "vowel_modifier" ? "grid-cols-1 sm:grid-cols-3" : "grid-cols-2 min-[390px]:grid-cols-3 sm:grid-cols-4 md:grid-cols-5 xl:grid-cols-7")}>
+                  <div className={cn("grid gap-3", section.type === "vowel_modifier" ? "mx-auto w-full max-w-3xl grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3" : "grid-cols-2 min-[390px]:grid-cols-3 sm:grid-cols-4 md:grid-cols-5 xl:grid-cols-7")}>
                     {sectionItems.map((item) => (
                       <div key={item.letter_key} id={getBoardItemId(item.letter_key)} className="min-w-0 scroll-mt-28">
                         <BoardCell item={item} learned={hasAlphabetProgress(learnedIds, item)} favorite={hasAlphabetProgress(favoriteIds, item)} onClick={() => setSelectedItem(item)} />
