@@ -1,8 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 
-const protectedRoutes = ["/dashboard", "/ho-so", "/profile"];
-const authRoutes = ["/dang-nhap", "/dang-ky", "/login", "/register"];
+const protectedRoutes = ["/ho-so", "/admin"];
+const authRoutes = ["/dang-nhap", "/dang-ky"];
 
 function isRoute(pathname: string, routes: string[]) {
   return routes.some((route) => pathname === route || pathname.startsWith(`${route}/`));
@@ -48,10 +48,10 @@ export async function updateSession(request: NextRequest) {
   }
 
   if (user && isRoute(request.nextUrl.pathname, authRoutes)) {
-    const dashboardUrl = request.nextUrl.clone();
-    dashboardUrl.pathname = "/dashboard";
-    dashboardUrl.search = "";
-    return NextResponse.redirect(dashboardUrl);
+    const profileUrl = request.nextUrl.clone();
+    profileUrl.pathname = "/ho-so";
+    profileUrl.search = "";
+    return NextResponse.redirect(profileUrl);
   }
 
   return response;

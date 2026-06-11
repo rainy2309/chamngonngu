@@ -26,7 +26,7 @@ export function LessonCard({ lesson, progress }: { lesson: Lesson; progress: num
           <Progress value={progress} />
         </div>
         <Button asChild>
-          <Link href={`/lessons/${lesson.id}`}>Bắt đầu học <ArrowRight className="h-5 w-5" /></Link>
+          <Link href="/khoa-hoc">Bắt đầu học <ArrowRight className="h-5 w-5" /></Link>
         </Button>
       </CardContent>
     </Card>
