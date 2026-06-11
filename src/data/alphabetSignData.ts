@@ -60,24 +60,24 @@ const baseLetters = [
 const vowelModifierGroups = [
   {
     id: "circumflex_group",
-    label: "â / ê / ô",
-    title: "Ký hiệu nhóm â / ê / ô",
+    label: "Â / Ê / Ô",
+    title: "Ký hiệu nhóm Â / Ê / Ô",
     description: "Nhóm nguyên âm dùng dấu mũ.",
-    explanation: "â = a + ^, ê = e + ^, ô = o + ^",
+    explanation: "Â = A + dấu mũ, Ê = E + dấu mũ, Ô = O + dấu mũ.",
   },
   {
     id: "breve_group",
-    label: "ă",
-    title: "Ký hiệu chữ ă",
-    description: "Chữ ă được biểu đạt bằng chữ a kết hợp dấu breve.",
-    explanation: "ă = a + ˘",
+    label: "Ă",
+    title: "Ký hiệu chữ Ă",
+    description: "Chữ Ă được biểu đạt bằng chữ A kết hợp dấu trăng.",
+    explanation: "Ă = A + dấu trăng.",
   },
   {
     id: "horn_group",
-    label: "ư / ơ",
-    title: "Ký hiệu nhóm ư / ơ",
+    label: "Ư / Ơ",
+    title: "Ký hiệu nhóm Ư / Ơ",
     description: "Nhóm nguyên âm dùng dấu móc.",
-    explanation: "ư = u + ˇ, ơ = o + ˇ",
+    explanation: "Ư = U + dấu móc, Ơ = O + dấu móc.",
   },
 ] as const;
 

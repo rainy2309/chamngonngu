@@ -183,34 +183,11 @@ function DictionaryContent() {
 
   useEffect(() => {
     const firstAvailableLetter = grouped.find((group) => group.items.length)?.letter;
-    if (firstAvailableLetter) setActiveLetter((current) => (lettersWithData.has(current) ? current : firstAvailableLetter));
-  }, [grouped, lettersWithData]);
-
-  useEffect(() => {
-    const visibleGroups = grouped.filter((group) => group.items.length);
-    if (!visibleGroups.length) return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const activeEntry = entries
-          .filter((entry) => entry.isIntersecting)
-          .sort((a, b) => Math.abs(a.boundingClientRect.top - 150) - Math.abs(b.boundingClientRect.top - 150))[0];
-        const letter = activeEntry?.target.getAttribute("data-letter");
-        if (letter) setActiveLetter(letter);
-      },
-      {
-        rootMargin: "-120px 0px -55% 0px",
-        threshold: 0.1,
-      },
-    );
-
-    visibleGroups.forEach((group) => {
-      const element = document.getElementById(getDictionaryLetterId(group.letter));
-      if (element) observer.observe(element);
+    setActiveLetter((current) => {
+      if (!firstAvailableLetter) return vietnameseAlphabet[0];
+      return lettersWithData.has(current) ? current : firstAvailableLetter;
     });
-
-    return () => observer.disconnect();
-  }, [grouped]);
+  }, [grouped, lettersWithData]);
 
   function toggleFavorite(id: string) {
     setFavoriteIds(toggleLocalId(favoriteKey, id));
@@ -248,25 +225,6 @@ function DictionaryContent() {
             <FilterSelect label="Chủ đề" value={category} onChange={setCategory} options={["Tất cả", ...signCategories]} />
           </div>
 
-          {lettersWithData.size ? <div className="sticky top-24 z-20 mt-3 flex gap-2 overflow-x-auto rounded-full bg-white/95 py-1.5 dark:bg-slate-900/95 lg:hidden">
-            {vietnameseAlphabet.map((letter) => (
-              <button
-                key={letter}
-                type="button"
-                disabled={!lettersWithData.has(letter)}
-                onClick={() => scrollToLetter(letter)}
-                className={cn(
-                  "h-9 min-w-9 rounded-full text-sm font-black transition",
-                  !lettersWithData.has(letter) && "bg-slate-50 text-slate-300 dark:bg-slate-800 dark:text-slate-600",
-                  lettersWithData.has(letter) && activeLetter !== letter && "bg-blue-50 text-blue-700 dark:bg-blue-500/15 dark:text-blue-100",
-                  activeLetter === letter && "bg-blue-700 text-white shadow-md shadow-blue-100 dark:bg-blue-500 dark:text-white",
-                )}
-              >
-                {letter}
-              </button>
-            ))}
-          </div> : null}
-
           <p className="mt-3 flex items-start gap-2 rounded-2xl bg-blue-50/70 px-3 py-2 text-xs font-semibold leading-5 text-blue-900 dark:bg-blue-500/10 dark:text-blue-100 sm:text-sm">
             <Info className="mt-0.5 h-4 w-4 shrink-0 text-blue-600 dark:text-blue-200" aria-hidden="true" />
             <span>Lưu ý: Ký hiệu có thể thay đổi theo vùng và cần được xác minh bởi nguồn chuyên môn.</span>
@@ -281,7 +239,7 @@ function DictionaryContent() {
         ) : query.trim() && filtered.length === 0 ? (
           <EmptySearchState query={query} />
         ) : (
-          <div className="grid gap-6 lg:grid-cols-[1fr_auto]">
+          <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_2.75rem]">
             <div className="space-y-8">
               {filtered.length ? grouped.map((group) => group.items.length ? (
                 <section key={group.letter} id={getDictionaryLetterId(group.letter)} data-letter={group.letter} className="scroll-mt-36">
@@ -303,16 +261,20 @@ function DictionaryContent() {
               )}
             </div>
 
-            <aside className="sticky top-28 hidden h-fit max-h-[calc(100vh-140px)] rounded-3xl border border-blue-100 bg-white p-2 shadow-lg shadow-blue-100/60 dark:border-slate-700 dark:bg-slate-900 dark:shadow-none lg:block" aria-label="Chỉ mục chữ cái">
-              <div className="grid gap-1">
+            {lettersWithData.size ? (
+              <aside className="sticky top-[110px] hidden max-h-[calc(100dvh-140px)] w-11 self-start rounded-2xl border border-blue-100 bg-white/95 px-1.5 py-2 shadow-lg shadow-blue-100/60 dark:border-slate-700 dark:bg-slate-900/95 dark:shadow-none xl:block" aria-label="Chỉ mục chữ cái">
+              <div className="grid justify-items-center gap-0.5">
                 {vietnameseAlphabet.map((letter) => (
                   <button
                     key={letter}
                     type="button"
                     disabled={!lettersWithData.has(letter)}
-                    onClick={() => scrollToLetter(letter)}
+                    onClick={() => {
+                      setActiveLetter(letter);
+                      scrollToLetter(letter);
+                    }}
                     className={cn(
-                      "grid h-8 w-8 place-items-center rounded-full text-xs font-black transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100",
+                      "grid h-6 w-8 place-items-center rounded-md text-[11px] font-black leading-none transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100",
                       !lettersWithData.has(letter) && "cursor-not-allowed text-slate-300 dark:text-slate-600",
                       lettersWithData.has(letter) && activeLetter !== letter && "text-blue-700 hover:bg-blue-50 dark:text-blue-100 dark:hover:bg-slate-800",
                       activeLetter === letter && "bg-blue-700 text-white shadow-sm shadow-blue-200 dark:bg-blue-500",
@@ -323,6 +285,7 @@ function DictionaryContent() {
                 ))}
               </div>
             </aside>
+            ) : null}
           </div>
         )}
       </div>
