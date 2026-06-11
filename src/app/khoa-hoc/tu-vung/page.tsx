@@ -244,7 +244,7 @@ function VocabularyDetailModal({
               ) : null}
 
               <Link href={`/tu-dien?q=${encodeURIComponent(item.word)}`} className="w-fit rounded-full bg-blue-50 px-3 py-2 text-sm font-black text-blue-700 hover:bg-blue-100 dark:bg-blue-500/15 dark:text-blue-100">
-                Xem trong từ điển
+                Đóng góp hoặc bình luận trong Từ điển
               </Link>
 
               <div className="grid gap-2 border-t border-blue-100 pt-3 dark:border-slate-700 sm:grid-cols-3">

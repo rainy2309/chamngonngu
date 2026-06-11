@@ -19,20 +19,6 @@ import { getVietnameseFirstLetter, groupDictionaryByLetter, normalizeVietnameseT
 const favoriteKey = "cham_favorite_signs";
 const learnedKey = "cham_learned_signs";
 
-const difficultyLabels = {
-  easy: "Dễ",
-  medium: "Trung bình",
-  hard: "Khó",
-};
-
-const regionLabels = {
-  HN: "Hà Nội",
-  HP: "Hải Phòng",
-  HCM: "TP.HCM",
-  "Toàn quốc": "Toàn quốc",
-  "Chưa xác định": "Chưa xác định",
-};
-
 type LocalLearningRecord = {
   id: string;
   itemId: string;
@@ -548,8 +534,6 @@ function CompactSignDetailModal({
                 <div className="min-w-0">
                   <div className="flex flex-wrap gap-2">
                     <Badge>{item.category}</Badge>
-                    <Badge className="bg-sky-50 text-sky-800 ring-sky-100 dark:bg-sky-500/15 dark:text-sky-100 dark:ring-sky-500/20">{regionLabels[item.region as keyof typeof regionLabels] ?? item.region}</Badge>
-                    <Badge className="bg-emerald-50 text-emerald-800 ring-emerald-100 dark:bg-emerald-500/15 dark:text-emerald-100 dark:ring-emerald-500/20">{difficultyLabels[item.difficulty]}</Badge>
                   </div>
                   <Dialog.Title className="mt-2 text-2xl font-black text-slate-950 dark:text-white sm:text-3xl">{item.word}</Dialog.Title>
                 </div>
@@ -611,7 +595,7 @@ function CompactSignDetailModal({
                 ) : null}
 
                 <details className="mt-4 rounded-2xl border border-blue-100 bg-white p-3 dark:border-slate-700 dark:bg-slate-900">
-                  <summary className="cursor-pointer text-sm font-black text-blue-700 dark:text-blue-100">Đóng góp video và bình luận</summary>
+                  <summary className="cursor-pointer text-sm font-black text-blue-700 dark:text-blue-100">Đóng góp cộng đồng</summary>
                   <div className="mt-3 grid gap-3">
                     <CommunityVideos wordId={item.id} wordText={item.word} compactEmpty />
                     <WordComments wordId={item.id} compact />
@@ -670,8 +654,6 @@ function SignDetailModal({
                 <div className="min-w-0">
                   <div className="flex flex-wrap gap-2">
                     <Badge>{item.category}</Badge>
-                    <Badge className="bg-sky-50 text-sky-800 ring-sky-100 dark:bg-sky-500/15 dark:text-sky-100 dark:ring-sky-500/20">{regionLabels[item.region as keyof typeof regionLabels] ?? item.region}</Badge>
-                    <Badge className="bg-emerald-50 text-emerald-800 ring-emerald-100 dark:bg-emerald-500/15 dark:text-emerald-100 dark:ring-emerald-500/20">{difficultyLabels[item.difficulty]}</Badge>
                   </div>
                   <Dialog.Title className="mt-2 text-2xl font-black text-slate-950 dark:text-white sm:text-3xl">{item.word}</Dialog.Title>
                 </div>
@@ -721,7 +703,7 @@ function SignDetailModal({
               </section>
 
               <details className="rounded-2xl border border-blue-100 bg-white p-3 dark:border-slate-700 dark:bg-slate-900">
-                <summary className="cursor-pointer text-sm font-black text-blue-700 dark:text-blue-100">Đóng góp video và bình luận</summary>
+                <summary className="cursor-pointer text-sm font-black text-blue-700 dark:text-blue-100">Đóng góp cộng đồng</summary>
                 <div className="mt-3 grid gap-3">
                   <CommunityVideos wordId={item.id} wordText={item.word} />
                   <WordComments wordId={item.id} />
