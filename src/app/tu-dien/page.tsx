@@ -33,25 +33,66 @@ const regionLabels = {
   "Chưa xác định": "Chưa xác định",
 };
 
-function readLocalArray(key: string) {
+type LocalLearningRecord = {
+  id: string;
+  itemId: string;
+  label: string;
+  word: string;
+  category: string;
+  itemType: "dictionary";
+  href: string;
+  savedAt: string;
+  updatedAt: string;
+};
+
+type LocalLearningEntry = string | Partial<LocalLearningRecord>;
+
+function getLocalEntryId(item: unknown) {
+  if (typeof item === "string") return item;
+  if (item && typeof item === "object") {
+    const record = item as Record<string, unknown>;
+    return String(record.id ?? record.itemId ?? record.word_key ?? record.wordKey ?? "");
+  }
+  return "";
+}
+
+function readLocalEntries(key: string): LocalLearningEntry[] {
   if (typeof window === "undefined") return [];
   try {
     const parsed = JSON.parse(window.localStorage.getItem(key) ?? "[]") as unknown;
-    return Array.isArray(parsed) ? parsed.map(String) : [];
+    return Array.isArray(parsed) ? (parsed as LocalLearningEntry[]) : [];
   } catch {
     return [];
   }
 }
 
-function writeLocalArray(key: string, ids: string[]) {
-  window.localStorage.setItem(key, JSON.stringify(Array.from(new Set(ids))));
+function readLocalArray(key: string) {
+  return readLocalEntries(key).map(getLocalEntryId).filter(Boolean);
 }
 
-function toggleLocalId(key: string, id: string) {
-  const current = readLocalArray(key);
-  const next = current.includes(id) ? current.filter((item) => item !== id) : [id, ...current];
-  writeLocalArray(key, next);
-  return next;
+function makeDictionaryLearningRecord(item: SignDictionaryItem): LocalLearningRecord {
+  const now = new Date().toISOString();
+  return {
+    id: item.id,
+    itemId: item.id,
+    label: item.word,
+    word: item.word,
+    category: item.category,
+    itemType: "dictionary",
+    href: `/tu-dien?q=${encodeURIComponent(item.word)}`,
+    savedAt: now,
+    updatedAt: now,
+  };
+}
+
+function toggleLocalItem(key: string, item: SignDictionaryItem) {
+  const current = readLocalEntries(key);
+  const currentIds = current.map(getLocalEntryId).filter(Boolean);
+  const nextEntries = currentIds.includes(item.id)
+    ? current.filter((entry) => getLocalEntryId(entry) !== item.id)
+    : [makeDictionaryLearningRecord(item), ...current.filter((entry) => getLocalEntryId(entry) !== item.id)];
+  window.localStorage.setItem(key, JSON.stringify(nextEntries));
+  return nextEntries.map(getLocalEntryId).filter(Boolean);
 }
 
 function scrollToLetter(letter: string) {
@@ -66,6 +107,57 @@ function slugifyTopic(value: string) {
 
 function normalizeComparableText(value?: string | null) {
   return (value ?? "").trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+function tokenizeSearchText(value: string) {
+  return value
+    .toLowerCase()
+    .split(/[^\p{L}\p{N}]+/u)
+    .filter(Boolean);
+}
+
+function phraseSegmentMatch(text: string, query: string) {
+  if (!text || !query) return false;
+  if (text === query) return true;
+  if (text.startsWith(`${query} `)) return true;
+  if (text.endsWith(` ${query}`)) return true;
+  return text.includes(` ${query} `);
+}
+
+function wordOrPhraseMatch(text: string, query: string) {
+  if (!text || !query) return false;
+  if (phraseSegmentMatch(text, query)) return true;
+  return tokenizeSearchText(text).includes(query);
+}
+
+function getSearchScore(item: SignDictionaryItem, rawQuery: string) {
+  const originalQuery = normalizeComparableText(rawQuery);
+  const normalizedQuery = normalizeVietnameseText(rawQuery);
+  if (!originalQuery || !normalizedQuery) return 1;
+
+  const originalWord = normalizeComparableText(item.word);
+  const normalizedWord = normalizeVietnameseText(item.word);
+  const normalizedStoredWord = normalizeVietnameseText(item.normalizedWord);
+  const normalizedWordCandidates = Array.from(new Set([normalizedWord, normalizedStoredWord].filter(Boolean)));
+  const isShortQuery = normalizedQuery.length <= 2;
+
+  if (originalWord === originalQuery) return 100;
+  if (originalWord.startsWith(`${originalQuery} `) || originalWord.startsWith(`${originalQuery}-`)) return 90;
+  if (wordOrPhraseMatch(originalWord, originalQuery)) return 80;
+
+  if (normalizedWordCandidates.some((word) => word === normalizedQuery)) return 70;
+  if (normalizedWordCandidates.some((word) => word.startsWith(`${normalizedQuery} `) || word.startsWith(`${normalizedQuery}-`))) return 60;
+  if (normalizedWordCandidates.some((word) => wordOrPhraseMatch(word, normalizedQuery))) return 50;
+
+  if (!isShortQuery && [item.meaning, item.simpleExplanation, item.exampleSentence, item.description, ...item.relatedWords].some((field) => normalizeVietnameseText(field ?? "").includes(normalizedQuery))) {
+    return 30;
+  }
+
+  if (normalizedQuery.length >= 4 && normalizeVietnameseText(item.category).includes(normalizedQuery)) {
+    return 10;
+  }
+
+  return 0;
 }
 
 function isMeaningfullyDifferent(value: string | undefined, comparedValues: Array<string | undefined>) {
@@ -162,18 +254,21 @@ function DictionaryContent() {
   }, []);
 
   const filtered = useMemo(() => {
-    const normalizedQuery = normalizeVietnameseText(query);
+    const trimmedQuery = query.trim();
     return dictWords
-      .filter((item) => {
+      .map((item, index) => ({ item, index, score: getSearchScore(item, trimmedQuery) }))
+      .filter(({ item, score }) => {
         const matchesCategory = category === "Tất cả" || item.category === category;
         const matchesRegion = region === "Tất cả" || item.region === region;
         const matchesDifficulty = difficulty === "Tất cả" || item.difficulty === difficulty;
-        const searchable = [item.word, item.normalizedWord, item.meaning, item.category, item.exampleSentence, item.description, ...item.relatedWords]
-          .map(normalizeVietnameseText)
-          .join(" ");
-        return matchesCategory && matchesRegion && matchesDifficulty && (!normalizedQuery || searchable.includes(normalizedQuery));
+        return matchesCategory && matchesRegion && matchesDifficulty && (!trimmedQuery || score > 0);
       })
-      .sort((a, b) => a.normalizedWord.localeCompare(b.normalizedWord, "vi"));
+      .sort((a, b) => {
+        if (trimmedQuery && b.score !== a.score) return b.score - a.score;
+        const byWord = a.item.normalizedWord.localeCompare(b.item.normalizedWord, "vi");
+        return byWord || a.index - b.index;
+      })
+      .map(({ item }) => item);
   }, [dictWords, query, category, region, difficulty]);
 
   const grouped = useMemo(() => groupDictionaryByLetter(filtered), [filtered]);
@@ -189,12 +284,12 @@ function DictionaryContent() {
     });
   }, [grouped, lettersWithData]);
 
-  function toggleFavorite(id: string) {
-    setFavoriteIds(toggleLocalId(favoriteKey, id));
+  function toggleFavorite(item: SignDictionaryItem) {
+    setFavoriteIds(toggleLocalItem(favoriteKey, item));
   }
 
-  function toggleLearned(id: string) {
-    setLearnedIds(toggleLocalId(learnedKey, id));
+  function toggleLearned(item: SignDictionaryItem) {
+    setLearnedIds(toggleLocalItem(learnedKey, item));
   }
 
   return (
@@ -249,7 +344,7 @@ function DictionaryContent() {
                   </h2>
                   <div className="grid grid-cols-[repeat(auto-fit,minmax(180px,1fr))] gap-3">
                     {group.items.map((item) => (
-                      <DictionaryCard key={item.id} item={item} favorite={favoriteIds.includes(item.id)} learned={learnedIds.includes(item.id)} onFavorite={() => toggleFavorite(item.id)} onOpen={() => setSelected(item)} />
+                      <DictionaryCard key={item.id} item={item} favorite={favoriteIds.includes(item.id)} learned={learnedIds.includes(item.id)} onFavorite={() => toggleFavorite(item)} onOpen={() => setSelected(item)} />
                     ))}
                   </div>
                 </section>
@@ -261,7 +356,7 @@ function DictionaryContent() {
               )}
             </div>
 
-            {lettersWithData.size ? (
+            {lettersWithData.size && filtered.length > 8 ? (
               <aside className="sticky top-[110px] hidden max-h-[calc(100dvh-140px)] w-11 self-start rounded-2xl border border-blue-100 bg-white/95 px-1.5 py-2 shadow-lg shadow-blue-100/60 dark:border-slate-700 dark:bg-slate-900/95 dark:shadow-none xl:block" aria-label="Chỉ mục chữ cái">
               <div className="grid justify-items-center gap-0.5">
                 {vietnameseAlphabet.map((letter) => (
@@ -295,8 +390,8 @@ function DictionaryContent() {
         favorite={selectedIsFavorite}
         learned={selectedIsLearned}
         onClose={() => setSelected(null)}
-        onFavorite={() => selected && toggleFavorite(selected.id)}
-        onLearned={() => selected && toggleLearned(selected.id)}
+        onFavorite={() => selected && toggleFavorite(selected)}
+        onLearned={() => selected && toggleLearned(selected)}
       />
     </main>
   );
@@ -339,8 +434,6 @@ function DictionaryCard({ item, favorite, learned, onFavorite, onOpen }: { item:
           <h3 className="line-clamp-2 min-h-[2.5rem] text-base font-black leading-5 text-slate-950 dark:text-white">{item.word}</h3>
           <div className="mt-2 flex flex-wrap gap-1.5">
             <Badge className="bg-blue-50 px-2 py-0.5 text-[11px] text-blue-700 ring-blue-100 dark:bg-blue-500/15 dark:text-blue-100 dark:ring-blue-500/20">{item.category}</Badge>
-            <Badge className="bg-sky-50 px-2 py-0.5 text-[11px] text-sky-800 ring-sky-100 dark:bg-sky-500/15 dark:text-sky-100 dark:ring-sky-500/20">{regionLabels[item.region as keyof typeof regionLabels] ?? item.region}</Badge>
-            <Badge className="bg-emerald-50 px-2 py-0.5 text-[11px] text-emerald-800 ring-emerald-100 dark:bg-emerald-500/15 dark:text-emerald-100 dark:ring-emerald-500/20">{difficultyLabels[item.difficulty]}</Badge>
           </div>
         </div>
         <button

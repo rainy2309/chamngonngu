@@ -3,10 +3,10 @@ import { BookOpen, ClipboardList, Layers, Search } from "lucide-react";
 import { AuthNav } from "@/components/auth/AuthNav";
 
 const quickLinks = [
-  { href: "/dictionary", label: "Tra từ", icon: Search },
-  { href: "/lessons", label: "Bài học", icon: BookOpen },
-  { href: "/flashcards", label: "Ôn tập", icon: Layers },
-  { href: "/quiz", label: "Làm quiz", icon: ClipboardList },
+  { href: "/tu-dien", label: "Tra từ", icon: Search },
+  { href: "/khoa-hoc", label: "Bài học", icon: BookOpen },
+  { href: "/khoa-hoc/luyen-tap", label: "Ôn tập", icon: Layers },
+  { href: "/khoa-hoc/luyen-tap", label: "Làm quiz", icon: ClipboardList },
 ];
 
 export function Sidebar() {

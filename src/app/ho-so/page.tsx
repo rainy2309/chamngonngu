@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { createClient, hasSupabaseEnv, missingEnvMessage } from "@/lib/supabase/client";
 import { getBestQuizScore } from "@/lib/quiz";
 import { learningStorageKeys, readBestQuizScore, readLearningItems, type StoredLearningItem } from "@/lib/localLearning";
-import { getProgressDisplayInfo } from "@/lib/progressDisplay";
+import { addDictionaryProgressItems, getProgressDisplayInfo, isUuidLike } from "@/lib/progressDisplay";
 import { readPracticeStats, type PracticeStats } from "@/lib/practiceStats";
 
 const roleLabels: Record<string, string> = {
@@ -37,7 +37,23 @@ function RecentList({ items, emptyText }: { items: StoredLearningItem[]; emptyTe
   return (
     <div className="grid gap-2">
       {items.slice(0, 5).map((item) => {
-        const display = getProgressDisplayInfo(item.id, item.label);
+        const baseDisplay = getProgressDisplayInfo(item.id, item.label);
+        const hasStoredLabel = item.label && item.label !== item.id && !isUuidLike(item.label);
+        const display =
+          baseDisplay.missingDetails && hasStoredLabel
+            ? {
+                ...baseDisplay,
+                label: item.label,
+                typeLabel: item.itemType === "dictionary" || item.itemType === "vocabulary" ? "Từ vựng" : "Mục học",
+                category: item.category,
+                href: item.href ?? baseDisplay.href,
+                missingDetails: false,
+              }
+            : {
+                ...baseDisplay,
+                category: baseDisplay.category ?? item.category,
+                href: item.href ?? baseDisplay.href,
+              };
 
         return (
         <Link key={item.id} href={display.href} className="group flex min-w-0 items-start justify-between gap-3 rounded-2xl border border-blue-100 bg-white px-4 py-3 transition hover:border-blue-300 hover:bg-blue-50/60 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100">
@@ -57,6 +73,10 @@ function RecentList({ items, emptyText }: { items: StoredLearningItem[]; emptyTe
       })}
     </div>
   );
+}
+
+function getStoredItemIds(items: StoredLearningItem[]) {
+  return Array.from(new Set(items.map((item) => item.id).filter(Boolean)));
 }
 
 export default function ProfilePage() {
@@ -79,9 +99,13 @@ export default function ProfilePage() {
   const [courses, setCourses] = useState<{ title: string; href: string }[]>([]);
 
   useEffect(() => {
-    setLearnedSigns(readLearningItems(learningStorageKeys.learned));
-    setFavoriteSigns(readLearningItems(learningStorageKeys.favorites));
-    setViewedLessons(readLearningItems(learningStorageKeys.viewedLessons));
+    const initialLearned = readLearningItems(learningStorageKeys.learned);
+    const initialFavorites = readLearningItems(learningStorageKeys.favorites);
+    const initialViewedLessons = readLearningItems(learningStorageKeys.viewedLessons);
+
+    setLearnedSigns(initialLearned);
+    setFavoriteSigns(initialFavorites);
+    setViewedLessons(initialViewedLessons);
     setBestScore(readBestQuizScore());
     setPracticeStats(readPracticeStats());
 
@@ -116,6 +140,42 @@ export default function ProfilePage() {
 
         const supabaseBestScore = await getBestQuizScore();
         setBestScore((current) => Math.max(current, supabaseBestScore));
+
+        try {
+          const savedIds = getStoredItemIds([...initialLearned, ...initialFavorites]);
+          const uuidIds = savedIds.filter(isUuidLike);
+          const textKeys = savedIds.filter((id) => !isUuidLike(id)).slice(0, 80);
+          const matchingRows: any[] = [];
+
+          if (uuidIds.length) {
+            const { data: uuidRows, error: uuidError } = await supabase
+              .from("dictionary_words")
+              .select("id, word_key, word, normalized_word, category")
+              .in("id", uuidIds);
+            if (uuidError) throw uuidError;
+            if (uuidRows) matchingRows.push(...uuidRows);
+          }
+
+          if (textKeys.length) {
+            const { data: wordRows, error: wordError } = await supabase
+              .from("dictionary_words")
+              .select("id, word_key, word, normalized_word, category")
+              .eq("status", "published")
+              .limit(500);
+            if (wordError) throw wordError;
+            if (wordRows) matchingRows.push(...wordRows);
+          }
+
+          if (matchingRows.length) {
+            addDictionaryProgressItems(matchingRows);
+            setLearnedSigns([...initialLearned]);
+            setFavoriteSigns([...initialFavorites]);
+          }
+        } catch (error) {
+          if (process.env.NODE_ENV === "development") {
+            console.warn("Profile learning item resolver fallback:", error);
+          }
+        }
 
         const { data, error } = await supabase.from("profiles").select("full_name,role,avatar_url,created_at").eq("id", user.id).maybeSingle();
         if (error) {

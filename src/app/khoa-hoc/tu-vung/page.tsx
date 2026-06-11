@@ -29,36 +29,72 @@ type VocabularyCourseItem = {
 const learnedKey = "cham_learned_signs";
 const favoriteKey = "cham_favorite_signs";
 
+type LocalLearningRecord = {
+  id: string;
+  itemId: string;
+  label: string;
+  word: string;
+  category: string;
+  itemType: "vocabulary";
+  href: string;
+  savedAt: string;
+  updatedAt: string;
+};
+
 const defaultSteps = [
   "Quan sát minh họa ký hiệu khi nhóm bổ sung dữ liệu.",
   "Giữ tay trong khung nhìn rõ.",
   "Thực hiện chậm và lặp lại 3-5 lần.",
 ];
 
-function readStorage(key: string) {
+function getLocalEntryId(item: unknown) {
+  if (typeof item === "string") return item;
+  if (item && typeof item === "object") {
+    const record = item as Record<string, unknown>;
+    return String(record.id ?? record.itemId ?? record.word_key ?? record.wordKey ?? "");
+  }
+  return "";
+}
+
+function readStorageEntries(key: string) {
   if (typeof window === "undefined") return [];
   try {
     const parsed = JSON.parse(window.localStorage.getItem(key) ?? "[]") as unknown;
     if (!Array.isArray(parsed)) return [];
-    return parsed.map((item) => (typeof item === "string" ? item : String((item as { id?: string }).id ?? ""))).filter(Boolean);
+    return parsed;
   } catch {
     return [];
   }
 }
 
-function saveStorage(key: string, id: string) {
-  if (typeof window === "undefined") return [];
-  const next = Array.from(new Set([id, ...readStorage(key)]));
-  window.localStorage.setItem(key, JSON.stringify(next));
-  return next;
+function readStorage(key: string) {
+  return readStorageEntries(key).map(getLocalEntryId).filter(Boolean);
 }
 
-function toggleStorage(key: string, id: string) {
+function makeVocabularyLearningRecord(item: VocabularyCourseItem, id: string): LocalLearningRecord {
+  const now = new Date().toISOString();
+  return {
+    id,
+    itemId: id,
+    label: item.word,
+    word: item.word,
+    category: item.category,
+    itemType: "vocabulary",
+    href: `/khoa-hoc/tu-vung?topic=${encodeURIComponent(slugifyTopic(item.category))}`,
+    savedAt: now,
+    updatedAt: now,
+  };
+}
+
+function toggleStorage(key: string, item: VocabularyCourseItem, id: string) {
   if (typeof window === "undefined") return [];
-  const current = readStorage(key);
-  const next = current.includes(id) ? current.filter((item) => item !== id) : [id, ...current];
-  window.localStorage.setItem(key, JSON.stringify(next));
-  return next;
+  const current = readStorageEntries(key);
+  const currentIds = current.map(getLocalEntryId).filter(Boolean);
+  const nextEntries = currentIds.includes(id)
+    ? current.filter((entry) => getLocalEntryId(entry) !== id)
+    : [makeVocabularyLearningRecord(item, id), ...current.filter((entry) => getLocalEntryId(entry) !== id)];
+  window.localStorage.setItem(key, JSON.stringify(nextEntries));
+  return nextEntries.map(getLocalEntryId).filter(Boolean);
 }
 
 function getVocabularyItemKey(item: VocabularyCourseItem, index: number) {
@@ -302,12 +338,12 @@ export default function VocabularyCoursePage() {
     });
   }, [activeTopic, items, query]);
 
-  function markLearned(item: VocabularyCourseItem) {
-    setLearned(toggleStorage(learnedKey, item.word_key || item.id));
+function markLearned(item: VocabularyCourseItem) {
+    setLearned(toggleStorage(learnedKey, item, item.word_key || item.id));
   }
 
   function saveFavorite(item: VocabularyCourseItem) {
-    setFavorites(toggleStorage(favoriteKey, item.id));
+    setFavorites(toggleStorage(favoriteKey, item, item.id));
   }
 
   const selectedIsLearned = selectedItem ? hasVocabularyProgress(learned, selectedItem) : false;

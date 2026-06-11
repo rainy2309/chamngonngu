@@ -11,6 +11,15 @@ export type ProgressDisplayInfo = {
   missingDetails?: boolean;
 };
 
+type DictionaryProgressSource = {
+  id?: string | null;
+  word?: string | null;
+  word_key?: string | null;
+  normalized_word?: string | null;
+  normalizedWord?: string | null;
+  category?: string | null;
+};
+
 const knownAlphabetLabels: Record<string, ProgressDisplayInfo> = {
   aw: { label: "Ă", typeLabel: "Bảng chữ cái", category: "Biến thể nguyên âm", href: "/khoa-hoc/bang-chu-cai?letter=breve_group" },
   aa: { label: "Â", typeLabel: "Bảng chữ cái", category: "Biến thể nguyên âm", href: "/khoa-hoc/bang-chu-cai?letter=circumflex_group" },
@@ -56,7 +65,7 @@ function prettifySlug(value: string) {
   return clean.replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
-function isUuidLike(value: string) {
+export function isUuidLike(value: string) {
   return /^[0-9a-f]{8}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{12}$/i.test(value.replace(/\s+/g, ""));
 }
 
@@ -68,6 +77,8 @@ const readableFallbacks: Record<string, ProgressDisplayInfo> = {
   "an-uong-com": { label: "Cơm", typeLabel: "Từ vựng", category: "Ăn uống", href: "/tu-dien?q=C%C6%A1m" },
   "an-uong-an-com-chua": { label: "Ăn cơm chưa?", typeLabel: "Từ vựng", category: "Ăn uống", href: "/tu-dien?q=%C4%82n%20c%C6%A1m%20ch%C6%B0a%3F" },
   "uong-an-com-chua": { label: "Ăn cơm chưa?", typeLabel: "Từ vựng", category: "Ăn uống", href: "/tu-dien?q=%C4%82n%20c%C6%A1m%20ch%C6%B0a%3F" },
+  "mon-nay-ngon": { label: "Món này ngon", typeLabel: "Từ vựng", category: "Ăn uống", href: "/tu-dien?q=M%C3%B3n%20n%C3%A0y%20ngon" },
+  "uong-mon-nay-ngon": { label: "Món này ngon", typeLabel: "Từ vựng", category: "Ăn uống", href: "/tu-dien?q=M%C3%B3n%20n%C3%A0y%20ngon" },
   "alphabet-aw": { label: "Ă", typeLabel: "Bảng chữ cái", category: "Biến thể nguyên âm", href: "/khoa-hoc/bang-chu-cai?letter=breve_group" },
   "alphabet-aa": { label: "Â", typeLabel: "Bảng chữ cái", category: "Biến thể nguyên âm", href: "/khoa-hoc/bang-chu-cai?letter=circumflex_group" },
   "alphabet-ee": { label: "Ê", typeLabel: "Bảng chữ cái", category: "Biến thể nguyên âm", href: "/khoa-hoc/bang-chu-cai?letter=circumflex_group" },
@@ -95,29 +106,39 @@ function addDisplayKeys(info: ProgressDisplayInfo, keys: Array<string | undefine
   });
 }
 
+export function addDictionaryProgressItems(items: DictionaryProgressSource[]) {
+  for (const item of items) {
+    if (!item.word) continue;
+
+    const category = item.category ?? undefined;
+    const info: ProgressDisplayInfo = {
+      label: item.word,
+      typeLabel: "Từ vựng",
+      category,
+      href: `/tu-dien?q=${encodeURIComponent(item.word)}`,
+    };
+    const categorySlug = category ? slugify(category) : "";
+    const wordSlug = slugify(item.word);
+    const normalizedWord = item.normalized_word ?? item.normalizedWord ?? normalizeVietnameseText(item.word);
+    const idWithoutOrdinal = item.id && categorySlug ? item.id.replace(new RegExp(`^${categorySlug}-\\d+-`), `${categorySlug}-`) : undefined;
+
+    addDisplayKeys(info, [
+      item.id ?? undefined,
+      item.word_key ?? undefined,
+      normalizedWord,
+      wordSlug,
+      categorySlug ? `${categorySlug}-${wordSlug}` : undefined,
+      idWithoutOrdinal,
+    ]);
+  }
+}
+
 for (const item of vocabularyCourseData) {
-  const info: ProgressDisplayInfo = {
-    label: item.word,
-    typeLabel: "Từ vựng",
-    category: item.category,
-    href: `/tu-dien?q=${encodeURIComponent(item.word)}`,
-  };
-  const topicSlug = slugify(item.category);
-  const wordSlug = slugify(item.word);
-  const idWithoutOrdinal = item.id.replace(new RegExp(`^${topicSlug}-\\d+-`), `${topicSlug}-`);
-  addDisplayKeys(info, [item.id, item.word_key, wordSlug, `${topicSlug}-${wordSlug}`, idWithoutOrdinal]);
+  addDictionaryProgressItems([item]);
 }
 
 for (const item of signDictionaryData) {
-  const info: ProgressDisplayInfo = {
-    label: item.word,
-    typeLabel: "Từ vựng",
-    category: item.category,
-    href: `/tu-dien?q=${encodeURIComponent(item.word)}`,
-  };
-  const categorySlug = slugify(item.category);
-  const wordSlug = slugify(item.word);
-  addDisplayKeys(info, [item.id, item.normalizedWord, wordSlug, `${categorySlug}-${wordSlug}`]);
+  addDictionaryProgressItems([item]);
 }
 
 for (const item of alphabetSignData) {
@@ -162,16 +183,17 @@ export function getProgressDisplayInfo(rawId: string, rawLabel?: string): Progre
 
   if (isUuidLike(rawId) || (rawLabel && isUuidLike(rawLabel))) {
     return {
-      label: "Mục học tập",
-      typeLabel: "Không tìm thấy dữ liệu chi tiết",
+      label: "Mục không còn tồn tại",
+      typeLabel: "Dữ liệu này có thể đã bị xóa hoặc chưa đồng bộ.",
       href: "/tu-dien",
       missingDetails: true,
     };
   }
 
   return {
-    label: prettifySlug(rawLabel && rawLabel !== rawId ? rawLabel : rawId),
-    typeLabel: "Mục học",
+    label: "Mục không còn tồn tại",
+    typeLabel: "Dữ liệu này có thể đã bị xóa hoặc chưa đồng bộ.",
     href: "/tu-dien",
+    missingDetails: true,
   };
 }
