@@ -49,7 +49,7 @@ export function ThemeToggle() {
     <button
       type="button"
       onClick={() => setTheme(nextTheme)}
-      className="fixed bottom-4 left-4 z-50 grid h-12 w-12 place-items-center rounded-full border border-blue-100 bg-white text-blue-700 shadow-xl shadow-blue-900/15 transition hover:-translate-y-0.5 hover:bg-blue-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-200 dark:border-slate-700 dark:bg-slate-900 dark:text-blue-200 dark:hover:bg-slate-800 sm:bottom-5 sm:left-5"
+      className="fixed bottom-[calc(env(safe-area-inset-bottom)+1rem)] right-4 z-50 grid h-11 w-11 place-items-center rounded-full border border-blue-100 bg-white text-blue-700 shadow-xl shadow-blue-900/15 transition hover:-translate-y-0.5 hover:bg-blue-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-200 dark:border-slate-700 dark:bg-slate-900 dark:text-blue-200 dark:hover:bg-slate-800 sm:bottom-5 sm:left-5 sm:right-auto sm:h-12 sm:w-12"
       aria-label="Chuyển giao diện sáng/tối"
     >
       {theme === "dark" ? <Sun className="h-5 w-5" aria-hidden="true" /> : <Moon className="h-5 w-5" aria-hidden="true" />}

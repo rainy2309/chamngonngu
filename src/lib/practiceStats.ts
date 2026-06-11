@@ -4,6 +4,7 @@ export type PracticeAttempt = {
   score: number;
   total: number;
   mode: string;
+  topic?: string;
   practicedAt: string;
 };
 

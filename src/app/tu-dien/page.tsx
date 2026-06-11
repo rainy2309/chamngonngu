@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button";
 import { signCategories, signDictionaryData, type SignDictionaryItem } from "@/data/signDictionaryData";
 import { createClient, hasSupabaseEnv } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
-import { getDictionaryLetterId, groupDictionaryByLetter, normalizeVietnameseText, vietnameseAlphabet } from "@/lib/vietnameseText";
+import { getVietnameseFirstLetter, groupDictionaryByLetter, normalizeVietnameseText, vietnameseAlphabet } from "@/lib/vietnameseText";
 
 const favoriteKey = "cham_favorite_signs";
 const learnedKey = "cham_learned_signs";
@@ -93,10 +93,6 @@ function toggleLocalItem(key: string, item: SignDictionaryItem) {
     : [makeDictionaryLearningRecord(item), ...current.filter((entry) => getLocalEntryId(entry) !== item.id)];
   window.localStorage.setItem(key, JSON.stringify(nextEntries));
   return nextEntries.map(getLocalEntryId).filter(Boolean);
-}
-
-function scrollToLetter(letter: string) {
-  document.getElementById(getDictionaryLetterId(letter))?.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 function slugifyTopic(value: string) {
@@ -182,7 +178,7 @@ function DictionaryContent() {
   const [learnedIds, setLearnedIds] = useState<string[]>([]);
   const [dictWords, setDictWords] = useState<SignDictionaryItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeLetter, setActiveLetter] = useState(vietnameseAlphabet[0]);
+  const [activeLetter, setActiveLetter] = useState("Tất cả");
 
   useEffect(() => {
     setQuery(searchParam);
@@ -253,7 +249,7 @@ function DictionaryContent() {
     void loadData();
   }, []);
 
-  const filtered = useMemo(() => {
+  const baseFiltered = useMemo(() => {
     const trimmedQuery = query.trim();
     return dictWords
       .map((item, index) => ({ item, index, score: getSearchScore(item, trimmedQuery) }))
@@ -271,18 +267,24 @@ function DictionaryContent() {
       .map(({ item }) => item);
   }, [dictWords, query, category, region, difficulty]);
 
+  const availableLetters = useMemo(() => {
+    return new Set(baseFiltered.map((item) => item.firstLetter || getVietnameseFirstLetter(item.word)));
+  }, [baseFiltered]);
+
+  const filtered = useMemo(() => {
+    if (activeLetter === "Tất cả") return baseFiltered;
+    return baseFiltered.filter((item) => (item.firstLetter || getVietnameseFirstLetter(item.word)) === activeLetter);
+  }, [activeLetter, baseFiltered]);
+
   const grouped = useMemo(() => groupDictionaryByLetter(filtered), [filtered]);
-  const lettersWithData = useMemo(() => new Set(grouped.filter((group) => group.items.length).map((group) => group.letter)), [grouped]);
   const selectedIsFavorite = selected ? favoriteIds.includes(selected.id) : false;
   const selectedIsLearned = selected ? learnedIds.includes(selected.id) : false;
 
   useEffect(() => {
-    const firstAvailableLetter = grouped.find((group) => group.items.length)?.letter;
-    setActiveLetter((current) => {
-      if (!firstAvailableLetter) return vietnameseAlphabet[0];
-      return lettersWithData.has(current) ? current : firstAvailableLetter;
-    });
-  }, [grouped, lettersWithData]);
+    if (activeLetter !== "Tất cả" && !availableLetters.has(activeLetter)) {
+      setActiveLetter("Tất cả");
+    }
+  }, [activeLetter, availableLetters]);
 
   function toggleFavorite(item: SignDictionaryItem) {
     setFavoriteIds(toggleLocalItem(favoriteKey, item));
@@ -320,6 +322,31 @@ function DictionaryContent() {
             <FilterSelect label="Chủ đề" value={category} onChange={setCategory} options={["Tất cả", ...signCategories]} />
           </div>
 
+          <div className="mt-3 overflow-x-auto pb-1" aria-label="Lọc theo chữ cái đầu">
+            <div className="flex min-w-max gap-2">
+              {["Tất cả", ...vietnameseAlphabet].map((letter) => {
+                const disabled = letter !== "Tất cả" && !availableLetters.has(letter);
+                const active = activeLetter === letter;
+                return (
+                  <button
+                    key={letter}
+                    type="button"
+                    disabled={disabled}
+                    onClick={() => setActiveLetter(letter)}
+                    className={cn(
+                      "min-h-10 rounded-full border px-3 text-sm font-black transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100",
+                      active && "border-blue-700 bg-blue-700 text-white shadow-sm shadow-blue-200 dark:border-blue-500 dark:bg-blue-500",
+                      !active && !disabled && "border-blue-100 bg-white text-blue-700 hover:bg-blue-50 dark:border-slate-700 dark:bg-slate-800 dark:text-blue-100 dark:hover:bg-slate-700",
+                      disabled && "cursor-not-allowed border-slate-100 bg-slate-50 text-slate-300 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-600",
+                    )}
+                  >
+                    {letter}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
           <p className="mt-3 flex items-start gap-2 rounded-2xl bg-blue-50/70 px-3 py-2 text-xs font-semibold leading-5 text-blue-900 dark:bg-blue-500/10 dark:text-blue-100 sm:text-sm">
             <Info className="mt-0.5 h-4 w-4 shrink-0 text-blue-600 dark:text-blue-200" aria-hidden="true" />
             <span>Lưu ý: Ký hiệu có thể thay đổi theo vùng và cần được xác minh bởi nguồn chuyên môn.</span>
@@ -331,13 +358,13 @@ function DictionaryContent() {
             <Loader2 className="h-10 w-10 animate-spin text-blue-600" aria-hidden="true" />
             <span className="font-bold text-slate-500 dark:text-slate-300">Đang tải từ điển...</span>
           </div>
-        ) : query.trim() && filtered.length === 0 ? (
+        ) : (query.trim() || activeLetter !== "Tất cả" || category !== "Tất cả") && filtered.length === 0 ? (
           <EmptySearchState query={query} />
         ) : (
-          <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_2.75rem]">
+          <div className="grid gap-6">
             <div className="space-y-8">
               {filtered.length ? grouped.map((group) => group.items.length ? (
-                <section key={group.letter} id={getDictionaryLetterId(group.letter)} data-letter={group.letter} className="scroll-mt-36">
+                <section key={group.letter} data-letter={group.letter} className="scroll-mt-36">
                   <h2 className="mb-3 flex items-center gap-3 text-2xl font-black text-blue-700 dark:text-blue-200 sm:text-3xl">
                     {group.letter}
                     <span className="h-px flex-1 bg-blue-100 dark:bg-slate-700" />
@@ -355,32 +382,6 @@ function DictionaryContent() {
                 </div>
               )}
             </div>
-
-            {lettersWithData.size && filtered.length > 8 ? (
-              <aside className="sticky top-[110px] hidden max-h-[calc(100dvh-140px)] w-11 self-start rounded-2xl border border-blue-100 bg-white/95 px-1.5 py-2 shadow-lg shadow-blue-100/60 dark:border-slate-700 dark:bg-slate-900/95 dark:shadow-none xl:block" aria-label="Chỉ mục chữ cái">
-              <div className="grid justify-items-center gap-0.5">
-                {vietnameseAlphabet.map((letter) => (
-                  <button
-                    key={letter}
-                    type="button"
-                    disabled={!lettersWithData.has(letter)}
-                    onClick={() => {
-                      setActiveLetter(letter);
-                      scrollToLetter(letter);
-                    }}
-                    className={cn(
-                      "grid h-6 w-8 place-items-center rounded-md text-[11px] font-black leading-none transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100",
-                      !lettersWithData.has(letter) && "cursor-not-allowed text-slate-300 dark:text-slate-600",
-                      lettersWithData.has(letter) && activeLetter !== letter && "text-blue-700 hover:bg-blue-50 dark:text-blue-100 dark:hover:bg-slate-800",
-                      activeLetter === letter && "bg-blue-700 text-white shadow-sm shadow-blue-200 dark:bg-blue-500",
-                    )}
-                  >
-                    {letter}
-                  </button>
-                ))}
-              </div>
-            </aside>
-            ) : null}
           </div>
         )}
       </div>
