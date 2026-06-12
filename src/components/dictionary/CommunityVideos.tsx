@@ -190,7 +190,7 @@ export function CommunityVideos({
         <div className="space-y-3">
           {/* Approved videos - horizontal scroll */}
           {approvedVideos.length > 0 && (
-            <div className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-2 scrollbar-hide">
+            <div className="-mx-5 flex gap-3 overflow-x-auto px-5 pb-3">
               {approvedVideos.map((vid) => (
                 <VideoCard
                   key={vid.id}
@@ -209,7 +209,7 @@ export function CommunityVideos({
           {pendingVideos.length > 0 && (
             <div className="space-y-2">
               <p className="text-xs font-bold text-slate-400 uppercase tracking-wide">Video của bạn</p>
-              <div className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-2 scrollbar-hide">
+              <div className="-mx-5 flex gap-3 overflow-x-auto px-5 pb-3">
                 {pendingVideos.map((vid) => (
                   <VideoCard
                     key={vid.id}
@@ -255,7 +255,7 @@ function VideoCard({
     : null;
 
   return (
-    <div className="group relative w-[280px] shrink-0 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition hover:shadow-md sm:w-[300px]">
+    <div className="group relative w-[240px] shrink-0 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition hover:shadow-md sm:w-[260px]">
       {/* Video area */}
       <div className="relative aspect-video w-full bg-slate-950">
         {playing ? (

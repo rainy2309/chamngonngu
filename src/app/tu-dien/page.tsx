@@ -635,6 +635,11 @@ function CompactSignDetailModal({
                     <AIExplanation word={item.word} hasSignData context={`Nghĩa: ${item.meaning}. Ví dụ: ${item.exampleSentence}`} />
                   </div>
 
+                  {/* ─── Regional Warning ─── */}
+                  <div className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700">
+                    ⚠️ Ký hiệu có thể thay đổi theo vùng và cần được xác minh bởi nguồn chuyên môn.
+                  </div>
+
                   {/* ─── Community Section ─── */}
                   <div className="mt-6 border-t border-slate-100 pt-5">
                     <h3 className="mb-4 flex items-center gap-2 text-lg font-black text-slate-900">
@@ -650,11 +655,6 @@ function CompactSignDetailModal({
                     {/* Comment Composer & Comment List */}
                     <WordComments wordId={item.id} />
                   </div>
-
-                  {/* ─── Disclaimer ─── */}
-                  <p className="mt-5 rounded-xl bg-amber-50 p-3 text-xs font-semibold leading-5 text-amber-800">
-                    ⚠️ Ký hiệu có thể thay đổi theo vùng và cần được xác minh bởi nguồn chuyên môn.
-                  </p>
                 </div>
               </div>
 
