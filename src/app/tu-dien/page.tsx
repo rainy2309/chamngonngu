@@ -8,6 +8,7 @@ import { Bookmark, CheckCircle2, HelpCircle, Info, Loader2, Search, Sparkles, X 
 import { AIExplanation } from "@/components/dictionary/AIExplanation";
 import { CommunityVideos } from "@/components/dictionary/CommunityVideos";
 import { WordComments } from "@/components/dictionary/WordComments";
+import { WordSuggestionModal } from "@/components/dictionary/WordSuggestionModal";
 import { SectionCard } from "@/components/common/SectionCard";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -179,6 +180,8 @@ function DictionaryContent() {
   const [dictWords, setDictWords] = useState<SignDictionaryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeLetter, setActiveLetter] = useState("Tất cả");
+  const [isSuggestionOpen, setIsSuggestionOpen] = useState(false);
+  const [suggestionQuery, setSuggestionQuery] = useState("");
 
   useEffect(() => {
     setQuery(searchParam);
@@ -359,7 +362,13 @@ function DictionaryContent() {
             <span className="font-bold text-slate-500 dark:text-slate-300">Đang tải từ điển...</span>
           </div>
         ) : (query.trim() || activeLetter !== "Tất cả" || category !== "Tất cả") && filtered.length === 0 ? (
-          <EmptySearchState query={query} />
+          <EmptySearchState
+            query={query}
+            onContribute={() => {
+              setSuggestionQuery(query);
+              setIsSuggestionOpen(true);
+            }}
+          />
         ) : (
           <div className="grid gap-6">
             <div className="space-y-8">
@@ -393,6 +402,12 @@ function DictionaryContent() {
         onClose={() => setSelected(null)}
         onFavorite={() => selected && toggleFavorite(selected)}
         onLearned={() => selected && toggleLearned(selected)}
+      />
+
+      <WordSuggestionModal
+        isOpen={isSuggestionOpen}
+        onClose={() => setIsSuggestionOpen(false)}
+        initialQuery={suggestionQuery}
       />
     </main>
   );
@@ -489,28 +504,96 @@ function MediaRenderer({ item }: { item: SignDictionaryItem }) {
   );
 }
 
-function EmptySearchState({ query }: { query: string }) {
-  const wordId = normalizeVietnameseText(query);
+function EmptySearchState({ query, onContribute }: { query: string; onContribute?: () => void }) {
+  const [showAI, setShowAI] = useState(false);
 
   return (
-    <div className="grid gap-3 lg:grid-cols-[1.15fr_0.85fr]">
-      <section className="rounded-[1.5rem] border border-blue-100 bg-white p-4 shadow-lg shadow-blue-100/30 dark:border-slate-700 dark:bg-slate-900 dark:shadow-none">
-        <div className="flex items-center gap-2 text-blue-600 dark:text-blue-200">
-          <Sparkles className="h-5 w-5" aria-hidden="true" />
-          <span className="text-xs font-black uppercase">AI hỗ trợ</span>
+    <div className="mx-auto max-w-2xl py-6">
+      {/* Redesigned Empty State Card */}
+      <section className="flex flex-col justify-between overflow-hidden rounded-3xl border border-blue-100 bg-white shadow-md shadow-blue-100/30 dark:border-slate-800 dark:bg-slate-900">
+        <div className="flex flex-col gap-6 p-6 sm:p-8 md:flex-row md:items-center">
+          {/* Left illustration: Cute Sun + Magnifying Glass + Clouds */}
+          <div className="flex shrink-0 items-center justify-center md:w-[32%]">
+            <div className="relative p-2">
+              <svg className="h-auto w-full max-w-[130px] text-blue-500" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+                {/* Sun rays */}
+                <path d="M100 30V15M100 185V170M30 100H15M185 100H170M50.5 50.5L40 40M160 160L149.5 149.5M50.5 149.5L40 160M160 40L149.5 50.5" stroke="#F59E0B" strokeWidth="6" strokeLinecap="round" />
+                {/* Sun body */}
+                <circle cx="100" cy="100" r="40" fill="#FBBF24" stroke="#F59E0B" strokeWidth="6" />
+                {/* Sun eyes and smile */}
+                <circle cx="88" cy="95" r="4.5" fill="#1E293B" />
+                <circle cx="112" cy="95" r="4.5" fill="#1E293B" />
+                <path d="M92 108C94 111 106 111 108 108" stroke="#1E293B" strokeWidth="4.5" strokeLinecap="round" />
+                {/* Decorative Clouds */}
+                <path d="M50 140C40 140 30 130 30 120C30 108 40 100 52 100C58 85 75 75 92 80C100 83 108 90 112 98C120 98 128 104 130 112C135 120 130 135 120 140H50Z" fill="#CBD5E1" opacity="0.6" />
+                <path d="M70 150C62 150 55 143 55 135C55 126 62 120 71 120C75 108 88 100 100 104C106 106 112 111 115 117C121 117 127 122 128 128C132 134 128 145 120 150H70Z" fill="#E2E8F0" />
+                {/* Magnifying glass */}
+                <g transform="translate(5, 5)">
+                  <circle cx="115" cy="115" r="22" stroke="#3B82F6" strokeWidth="6" fill="#EFF6FF" />
+                  <line x1="130" y1="130" x2="155" y2="155" stroke="#3B82F6" strokeWidth="8" strokeLinecap="round" />
+                  <path d="M103 105C108 101 115 103 118 106" stroke="#93C5FD" strokeWidth="3" strokeLinecap="round" />
+                </g>
+              </svg>
+            </div>
+          </div>
+
+          {/* Right text & buttons content */}
+          <div className="flex-1 text-center md:text-left">
+            <h2 className="text-2xl font-black text-slate-950 dark:text-white lg:text-3xl">
+              Chưa có ký hiệu cho &quot;{query}&quot;
+            </h2>
+            <p className="mt-3 text-sm font-semibold leading-relaxed text-slate-500 dark:text-slate-400">
+              Từ này hiện chưa có trong từ điển CHẠM. Bạn có thể nhờ AI giải thích nghĩa hoặc đề xuất thêm từ mới để đội ngũ kiểm duyệt.
+            </p>
+
+            {/* Action buttons */}
+            <div className="mt-6 flex flex-col flex-wrap gap-3 sm:flex-row sm:justify-center md:justify-start">
+              <button
+                type="button"
+                onClick={() => setShowAI(true)}
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-5 text-sm font-black text-blue-700 hover:bg-blue-100 dark:border-blue-900/50 dark:bg-blue-950/30 dark:text-blue-300 dark:hover:bg-blue-950/50"
+              >
+                <Sparkles className="h-4 w-4" />
+                Nhờ AI giải thích nghĩa từ này
+              </button>
+
+              <button
+                type="button"
+                onClick={onContribute}
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-blue-600 px-6 text-sm font-black text-white hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800"
+              >
+                <HelpCircle className="h-4 w-4" />
+                Đóng góp từ điển
+              </button>
+            </div>
+
+            {/* AI response placeholder notice */}
+            {showAI && (
+              <div className="mt-4 rounded-2xl border border-blue-100 bg-blue-50/40 p-4 text-left dark:border-slate-800 dark:bg-slate-950/30">
+                <div className="flex items-start gap-3">
+                  <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-blue-100 text-blue-600 dark:bg-slate-800 dark:text-blue-400">
+                    <Info className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-blue-800 dark:text-blue-300">
+                      AI hỗ trợ đang trong quá trình phát triển
+                    </p>
+                    <p className="mt-1 text-[11px] font-medium leading-4 text-blue-600 dark:text-blue-400/80">
+                      Tính năng giải thích nghĩa từ &quot;{query}&quot; bằng AI sẽ sớm được ra mắt. Cảm ơn bạn đã quan tâm!
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
-        <h2 className="mt-2 text-2xl font-black text-slate-950 dark:text-white">Chưa có ký hiệu cho &quot;{query}&quot;</h2>
-        <p className="mt-2 text-sm font-semibold leading-6 text-slate-500 dark:text-slate-300">
-          Bạn có thể nhờ AI giải thích nghĩa từ này hoặc đóng góp video ký hiệu để làm phong phú từ điển.
-        </p>
-        <div className="mt-4">
-          <AIExplanation word={query} hasSignData={false} />
+
+        {/* Bottom banner note */}
+        <div className="flex items-center gap-2 border-t border-amber-100 bg-amber-50/70 px-6 py-3 text-xs font-semibold text-amber-800 dark:border-amber-950/20 dark:bg-amber-950/10 dark:text-amber-300">
+          <span className="text-sm">🛡️</span>
+          <span>Mọi đóng góp sẽ được kiểm duyệt bởi đội ngũ chuyên môn trước khi xuất bản.</span>
         </div>
       </section>
-      <div className="grid gap-3">
-        <CommunityVideos wordId={wordId} wordText={query} compactEmpty />
-        <WordComments wordId={wordId} compact />
-      </div>
     </div>
   );
 }
