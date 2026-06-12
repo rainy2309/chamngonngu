@@ -28,7 +28,15 @@ function formatTimeAgo(dateStr: string) {
   return date.toLocaleDateString("vi-VN", { day: "numeric", month: "short", year: "numeric" });
 }
 
-export function CommunityVideos({ wordId, wordText }: { wordId: string; wordText: string }) {
+export function CommunityVideos({
+  wordId,
+  wordText,
+  compactEmpty = false,
+}: {
+  wordId: string;
+  wordText: string;
+  compactEmpty?: boolean;
+}) {
   const [videos, setVideos] = useState<Contribution[]>([]);
   const [showUpload, setShowUpload] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -147,31 +155,37 @@ export function CommunityVideos({ wordId, wordText }: { wordId: string; wordText
         </div>
       ) : approvedVideos.length === 0 && pendingVideos.length === 0 ? (
         /* Empty state */
-        <div className="rounded-2xl border-2 border-dashed border-slate-200 bg-gradient-to-br from-slate-50 to-blue-50/30 p-8 text-center">
-          <div className="mx-auto mb-3 grid h-14 w-14 place-items-center rounded-2xl bg-blue-100 text-blue-500">
-            <Video className="h-7 w-7" />
+        compactEmpty ? (
+          <p className="rounded-xl bg-slate-50 p-3 text-sm font-semibold text-slate-500">
+            Chưa có video cộng đồng cho từ này.
+          </p>
+        ) : (
+          <div className="rounded-2xl border-2 border-dashed border-slate-200 bg-gradient-to-br from-slate-50 to-blue-50/30 p-8 text-center">
+            <div className="mx-auto mb-3 grid h-14 w-14 place-items-center rounded-2xl bg-blue-100 text-blue-500">
+              <Video className="h-7 w-7" />
+            </div>
+            <p className="text-sm font-bold text-slate-600">
+              Chưa có video đóng góp nào
+            </p>
+            <p className="mx-auto mt-1.5 max-w-sm text-xs font-medium leading-5 text-slate-400">
+              Hãy là người đầu tiên chia sẻ cách bạn thực hiện ký hiệu này. Video sẽ được kiểm duyệt trước khi hiển thị.
+            </p>
+            {isLoggedIn ? (
+              <Button onClick={() => setShowUpload(true)} size="sm" className="mt-4 gap-1.5 rounded-full">
+                <Upload className="h-3.5 w-3.5" />
+                Tải lên video đầu tiên
+              </Button>
+            ) : (
+              <a
+                href="/dang-nhap"
+                className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-blue-600 px-4 py-2 text-xs font-bold text-white transition hover:bg-blue-700"
+              >
+                <LogIn className="h-3.5 w-3.5" />
+                Đăng nhập để đóng góp
+              </a>
+            )}
           </div>
-          <p className="text-sm font-bold text-slate-600">
-            Chưa có video đóng góp nào
-          </p>
-          <p className="mx-auto mt-1.5 max-w-sm text-xs font-medium leading-5 text-slate-400">
-            Hãy là người đầu tiên chia sẻ cách bạn thực hiện ký hiệu này. Video sẽ được kiểm duyệt trước khi hiển thị.
-          </p>
-          {isLoggedIn ? (
-            <Button onClick={() => setShowUpload(true)} size="sm" className="mt-4 gap-1.5 rounded-full">
-              <Upload className="h-3.5 w-3.5" />
-              Tải lên video đầu tiên
-            </Button>
-          ) : (
-            <a
-              href="/dang-nhap"
-              className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-blue-600 px-4 py-2 text-xs font-bold text-white transition hover:bg-blue-700"
-            >
-              <LogIn className="h-3.5 w-3.5" />
-              Đăng nhập để đóng góp
-            </a>
-          )}
-        </div>
+        )
       ) : (
         <div className="space-y-3">
           {/* Approved videos - horizontal scroll */}
