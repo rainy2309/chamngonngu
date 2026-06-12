@@ -83,7 +83,7 @@ function buildReactionMap(
 }
 
 /* ─── Main Component ─── */
-export function WordComments({ wordId }: { wordId: string }) {
+export function WordComments({ wordId, compact = false }: { wordId: string; compact?: boolean }) {
   const [comments, setComments] = useState<Comment[]>([]);
   const [newComment, setNewComment] = useState("");
   const [loading, setLoading] = useState(false);
