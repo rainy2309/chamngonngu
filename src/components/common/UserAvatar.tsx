@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { User } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -37,14 +38,17 @@ function getColorFromName(name?: string | null) {
 }
 
 export function UserAvatar({ avatarUrl, fullName, size = "md", className }: UserAvatarProps) {
-  const initial = (fullName ?? "")[0]?.toUpperCase();
+  const [imageError, setImageError] = useState(false);
+  const initial = (fullName ?? "").trim()[0]?.toUpperCase();
 
-  if (avatarUrl) {
+  if (avatarUrl && !imageError) {
     return (
       /* eslint-disable-next-line @next/next/no-img-element */
       <img
         src={avatarUrl}
         alt={fullName ?? "Avatar"}
+        onError={() => setImageError(true)}
+        referrerPolicy="no-referrer"
         className={cn(
           "shrink-0 rounded-full object-cover ring-2 ring-white",
           sizeClasses[size],

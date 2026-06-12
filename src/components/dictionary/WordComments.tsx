@@ -124,9 +124,21 @@ export function WordComments({ wordId, compact = false }: { wordId: string; comp
           .select("role, full_name, avatar_url")
           .eq("id", user.id)
           .maybeSingle();
+
+        const fallbackName = user.user_metadata?.full_name || user.user_metadata?.name || user.email || "U";
+        const fallbackAvatar = user.user_metadata?.avatar_url || user.user_metadata?.picture || null;
+
         if (profile) {
           setUserRole(profile.role);
-          setUserProfile({ full_name: profile.full_name, avatar_url: profile.avatar_url });
+          setUserProfile({
+            full_name: profile.full_name || fallbackName,
+            avatar_url: profile.avatar_url || fallbackAvatar,
+          });
+        } else {
+          setUserProfile({
+            full_name: fallbackName,
+            avatar_url: fallbackAvatar,
+          });
         }
       }
 
