@@ -65,7 +65,7 @@ export async function uploadAlphabetBoardImage(
   const { error: uploadError } = await supabase.storage
     .from(alphabetBoardImageBucket)
     .upload(storagePath, file, {
-      cacheControl: "3600",
+      cacheControl: "no-cache",
       contentType: file.type,
       upsert: true,
     });

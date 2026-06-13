@@ -150,7 +150,7 @@ export function WordSuggestionModal({ isOpen, onClose, initialQuery = "" }: Word
 
       if (uploadError) {
         console.error("Upload storage error:", uploadError);
-        setError("Không thể tải lên video. Vui lòng thử lại.");
+        setError(`Không thể tải lên video: ${uploadError.message}`);
         setSubmitting(false);
         return;
       }
@@ -183,7 +183,7 @@ export function WordSuggestionModal({ isOpen, onClose, initialQuery = "" }: Word
 
       if (dbError) {
         console.error("Insert suggestion error:", dbError);
-        setError("Không thể lưu đề xuất. Vui lòng thử lại.");
+        setError(`Không thể lưu đề xuất: ${dbError.message} (${dbError.code || ""})`);
         setSubmitting(false);
         return;
       }
