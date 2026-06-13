@@ -465,13 +465,13 @@ export default function AdminSuggestionsPage() {
                         <div className="flex items-start justify-between gap-4">
                           <h3 className="text-2xl font-black text-slate-900">{s.term}</h3>
                           <div className="flex gap-1.5">
-                            <Badge variant="outline" className="rounded-full font-bold">
+                            <Badge className="rounded-full font-bold">
                               {s.category}
                             </Badge>
-                            <Badge variant="outline" className="rounded-full font-bold">
+                            <Badge className="rounded-full font-bold">
                               {s.region}
                             </Badge>
-                            <Badge variant="outline" className="rounded-full font-bold">
+                            <Badge className="rounded-full font-bold">
                               Độ khó: {s.difficulty === "easy" ? "Dễ" : s.difficulty === "medium" ? "Trung bình" : "Khó"}
                             </Badge>
                           </div>
