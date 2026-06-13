@@ -378,7 +378,7 @@ export default function AlphabetCoursePage() {
         const { data, error } = await supabase
           .from("alphabet_media")
           .select(
-            "id, letter_key, letter, display_label, type, title, description, explanation, instructions, tips, video_url, gif_url, thumbnail_url, board_image_url, board_image_alt, status, display_order",
+            "id, letter_key, letter, display_label, type, title, description, explanation, instructions, tips, video_url, gif_url, thumbnail_url, board_image_url, board_image_alt, status, display_order, updated_at",
           )
           .eq("status", "published");
 
@@ -407,7 +407,9 @@ export default function AlphabetCoursePage() {
               video_url: row.video_url as string | null,
               gif_url: row.gif_url as string | null,
               thumbnail_url: row.thumbnail_url as string | null,
-              board_image_url: row.board_image_url as string | null,
+              board_image_url: row.board_image_url
+                ? `${row.board_image_url}?t=${row.updated_at ? new Date(row.updated_at).getTime() : Date.now()}`
+                : null,
               board_image_alt: row.board_image_alt as string | null,
             },
           ]),

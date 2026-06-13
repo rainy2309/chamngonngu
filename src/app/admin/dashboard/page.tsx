@@ -19,6 +19,7 @@ type DashboardStats = {
   totalVideos: number;
   totalLessons: number;
   pendingSubmissions: number;
+  pendingSuggestions: number;
   totalUsers: number;
   totalComments: number;
 };
@@ -28,6 +29,7 @@ const defaultStats: DashboardStats = {
   totalVideos: 0,
   totalLessons: 0,
   pendingSubmissions: 0,
+  pendingSuggestions: 0,
   totalUsers: 0,
   totalComments: 0,
 };
@@ -45,7 +47,7 @@ export default function AdminDashboardPage() {
 
       const supabase = createClient();
 
-      const [words, lessons, submissions, users, comments, videos] = await Promise.all([
+      const [words, lessons, submissions, suggestions, users, comments, videos] = await Promise.all([
         supabase
           .from("dictionary_words")
           .select("*", { count: "exact", head: true }),
@@ -54,6 +56,10 @@ export default function AdminDashboardPage() {
           .select("*", { count: "exact", head: true }),
         supabase
           .from("word_contributions")
+          .select("*", { count: "exact", head: true })
+          .eq("status", "pending"),
+        supabase
+          .from("dictionary_word_suggestions")
           .select("*", { count: "exact", head: true })
           .eq("status", "pending"),
         supabase
@@ -73,6 +79,7 @@ export default function AdminDashboardPage() {
         totalVideos: videos.count ?? 0,
         totalLessons: lessons.count ?? 0,
         pendingSubmissions: submissions.count ?? 0,
+        pendingSuggestions: suggestions.count ?? 0,
         totalUsers: users.count ?? 0,
         totalComments: comments.count ?? 0,
       });
@@ -99,11 +106,18 @@ export default function AdminDashboardPage() {
       color: "text-emerald-600 bg-emerald-50",
     },
     {
-      label: "Chờ duyệt",
+      label: "Duyệt đóng góp",
       value: stats.pendingSubmissions,
       icon: MessageSquare,
       href: "/admin/submissions",
       color: "text-amber-600 bg-amber-50",
+    },
+    {
+      label: "Duyệt từ mới",
+      value: stats.pendingSuggestions,
+      icon: BookMarked,
+      href: "/admin/suggestions",
+      color: "text-orange-600 bg-orange-50",
     },
     {
       label: "Người dùng",
@@ -172,7 +186,7 @@ export default function AdminDashboardPage() {
             ))}
           </div>
 
-          <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <Link
               href="/admin/dictionary/new"
               className="rounded-2xl border-2 border-dashed border-blue-200 bg-blue-50/50 p-6 text-center font-black text-blue-700 transition hover:bg-blue-100"
@@ -184,6 +198,12 @@ export default function AdminDashboardPage() {
               className="rounded-2xl border-2 border-dashed border-emerald-200 bg-emerald-50/50 p-6 text-center font-black text-emerald-700 transition hover:bg-emerald-100"
             >
               + Thêm bài học
+            </Link>
+            <Link
+              href="/admin/suggestions"
+              className="rounded-2xl border-2 border-dashed border-amber-200 bg-amber-50/50 p-6 text-center font-black text-amber-700 transition hover:bg-amber-100"
+            >
+              Duyệt từ đề xuất
             </Link>
             <Link
               href="/admin/content"

@@ -186,7 +186,7 @@ export default function PracticePage() {
             .eq("status", "published"),
           supabase
             .from("alphabet_media")
-            .select("id, letter_key, label, display_label, type, title, description, explanation, video_url, gif_url, thumbnail_url, board_image_url, status")
+            .select("id, letter_key, label, display_label, type, title, description, explanation, video_url, gif_url, thumbnail_url, board_image_url, status, updated_at")
             .eq("status", "published"),
         ]);
 
@@ -204,13 +204,16 @@ export default function PracticePage() {
 
         const alphabetItems: PracticeItem[] = (alphabetRows ?? []).map((row: any) => {
           const label = String(row.display_label ?? row.label ?? row.letter_key ?? "");
+          const boardImageUrl = row.board_image_url
+            ? `${row.board_image_url}?t=${row.updated_at ? new Date(row.updated_at).getTime() : Date.now()}`
+            : null;
           return {
             id: String(row.letter_key ?? row.id),
             keys: [row.id, row.letter_key, `alphabet-${row.letter_key}`, row.label, row.display_label].filter(Boolean).map(String),
             word: label,
             category: row.type === "tone_mark" ? "Dấu thanh" : "Bảng chữ cái",
             description: String(row.description ?? row.explanation ?? row.title ?? ""),
-            ...getMedia(row.video_url, row.gif_url, row.thumbnail_url, row.board_image_url),
+            ...getMedia(row.video_url, row.gif_url, row.thumbnail_url, boardImageUrl),
           };
         });
 

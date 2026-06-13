@@ -1,5 +1,8 @@
+-- Drop table if exists to update schema cleanly
+DROP TABLE IF EXISTS public.dictionary_word_suggestions CASCADE;
+
 -- Create dictionary_word_suggestions table
-CREATE TABLE IF NOT EXISTS public.dictionary_word_suggestions (
+CREATE TABLE public.dictionary_word_suggestions (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   term TEXT NOT NULL,
   normalized_term TEXT NOT NULL,
@@ -13,9 +16,9 @@ CREATE TABLE IF NOT EXISTS public.dictionary_word_suggestions (
   note TEXT,
   video_url TEXT NOT NULL,
   video_path TEXT,
-  submitted_by UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  submitted_by UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
   status TEXT NOT NULL DEFAULT 'pending', -- pending, approved, rejected
-  reviewed_by UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  reviewed_by UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
   reviewed_at TIMESTAMP WITH TIME ZONE,
   admin_note TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
@@ -24,6 +27,12 @@ CREATE TABLE IF NOT EXISTS public.dictionary_word_suggestions (
 
 -- Enable Row Level Security (RLS)
 ALTER TABLE public.dictionary_word_suggestions ENABLE ROW LEVEL SECURITY;
+
+-- Drop policies if they exist to allow re-running
+DROP POLICY IF EXISTS "Users can insert suggestions" ON public.dictionary_word_suggestions;
+DROP POLICY IF EXISTS "Users can view own suggestions" ON public.dictionary_word_suggestions;
+DROP POLICY IF EXISTS "Admins can update suggestions" ON public.dictionary_word_suggestions;
+DROP POLICY IF EXISTS "Admins can delete suggestions" ON public.dictionary_word_suggestions;
 
 -- Policy: Authenticated users can insert suggestions
 CREATE POLICY "Users can insert suggestions" 
@@ -74,3 +83,7 @@ CREATE POLICY "Admins can delete suggestions"
       WHERE id = auth.uid() AND role = 'admin'
     )
   );
+
+-- Grant explicit permissions to api roles
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.dictionary_word_suggestions TO anon, authenticated, service_role;
+
