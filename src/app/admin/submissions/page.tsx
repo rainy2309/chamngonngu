@@ -108,6 +108,7 @@ export default function AdminSubmissionsPage() {
                     src={s.video_url}
                     controls
                     className="h-full w-full object-contain"
+                    playsInline
                   />
                 ) : (
                   <div className="flex h-full w-full items-center justify-center text-slate-500">

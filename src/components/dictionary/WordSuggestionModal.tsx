@@ -201,14 +201,14 @@ export function WordSuggestionModal({ isOpen, onClose, initialQuery = "" }: Word
     <Dialog.Root open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-50 bg-slate-950/45 backdrop-blur-sm" />
-        <Dialog.Content className="scrollbar-hide fixed left-1/2 top-1/2 z-50 flex max-h-[85vh] w-[calc(100vw-24px)] max-w-[620px] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-[1.35rem] border border-blue-100 bg-white shadow-2xl focus:outline-none dark:border-slate-800 dark:bg-slate-900">
+        <Dialog.Content aria-describedby={undefined} className="scrollbar-hide fixed left-1/2 top-1/2 z-50 flex max-h-[85vh] w-[calc(100vw-24px)] max-w-[620px] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-[1.35rem] border border-blue-100 bg-white shadow-2xl focus:outline-none dark:border-slate-800 dark:bg-slate-900">
           
           {/* Header */}
           <div className="flex shrink-0 items-center justify-between border-b border-blue-100 p-4 dark:border-slate-800 sm:px-6">
-            <h2 className="flex items-center gap-2 text-lg font-black text-slate-950 dark:text-white">
+            <Dialog.Title className="flex items-center gap-2 text-lg font-black text-slate-950 dark:text-white">
               <HelpCircle className="h-5 w-5 text-blue-500" />
               Đóng góp từ mới vào từ điển
-            </h2>
+            </Dialog.Title>
             <Dialog.Close asChild>
               <button type="button" className="grid h-8 w-8 place-items-center rounded-full bg-slate-100 text-slate-600 hover:bg-blue-50 dark:bg-slate-800 dark:text-slate-200">
                 <X className="h-4 w-4" />
