@@ -317,7 +317,7 @@ export default function AdminSuggestionsPage() {
                 {/* Left: Video */}
                 <div className="relative aspect-video bg-slate-900 lg:w-[320px] lg:shrink-0">
                   {s.video_url ? (
-                    <video src={s.video_url} controls className="h-full w-full object-contain" />
+                    <video src={s.video_url} controls className="h-full w-full object-contain" playsInline />
                   ) : (
                     <div className="flex h-full w-full items-center justify-center text-slate-500">
                       <span className="text-xs font-semibold">Không có video</span>

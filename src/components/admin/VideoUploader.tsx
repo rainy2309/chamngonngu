@@ -146,6 +146,7 @@ export function VideoUploader({ videoUrl, onChange, folder, idKey }: VideoUpload
             src={videoUrl}
             controls
             className="aspect-video w-full rounded-xl bg-black object-contain"
+            playsInline
           />
           <button
             type="button"

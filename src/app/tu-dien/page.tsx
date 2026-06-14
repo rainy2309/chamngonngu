@@ -474,7 +474,7 @@ function MediaRenderer({ item }: { item: SignDictionaryItem }) {
   if (item.videoUrl) {
     return (
       <div className="flex h-[170px] w-full items-center justify-center overflow-hidden rounded-2xl bg-slate-950 sm:h-[200px] lg:h-[220px]">
-        <video src={item.videoUrl} poster={item.thumbnailUrl ?? undefined} className="h-full w-full object-contain" controls preload="metadata" />
+        <video src={item.videoUrl} poster={item.thumbnailUrl ?? undefined} className="h-full w-full object-contain" controls preload="metadata" playsInline />
       </div>
     );
   }
@@ -624,7 +624,7 @@ function CompactSignDetailModal({
     <Dialog.Root open={Boolean(item)} onOpenChange={(open) => !open && onClose()}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-50 bg-slate-950/45 backdrop-blur-sm" />
-        <Dialog.Content className="fixed left-1/2 top-1/2 z-50 flex max-h-[86dvh] w-[calc(100vw-24px)] max-w-[920px] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-[1.35rem] border border-blue-100 bg-white shadow-2xl focus:outline-none focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-900">
+        <Dialog.Content aria-describedby={undefined} className="fixed left-1/2 top-1/2 z-50 flex max-h-[86dvh] w-[calc(100vw-24px)] max-w-[920px] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-[1.35rem] border border-blue-100 bg-white shadow-2xl focus:outline-none focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-900">
           {item ? (
             <>
               {/* ─── Header ─── */}

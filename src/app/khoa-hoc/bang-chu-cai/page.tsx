@@ -130,6 +130,7 @@ function DetailMediaBox({ item }: { item: BoardAlphabetItem }) {
           controls
           preload="metadata"
           className="max-h-[260px] w-full rounded-xl object-contain sm:max-h-[320px] lg:max-h-[360px]"
+          playsInline
         >
           Trình duyệt của bạn không hỗ trợ video.
         </video>
@@ -281,7 +282,7 @@ function DetailModal({
     <Dialog.Root open={Boolean(item)} onOpenChange={onOpenChange}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-50 bg-slate-950/45 backdrop-blur-sm" />
-        <Dialog.Content className="scrollbar-hide fixed left-1/2 top-1/2 z-50 max-h-[88vh] w-[calc(100vw-24px)] max-w-[900px] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-[1.5rem] bg-white p-4 shadow-2xl focus:outline-none focus:ring-4 focus:ring-blue-100 sm:p-5 lg:max-h-[80vh]">
+        <Dialog.Content aria-describedby={undefined} className="scrollbar-hide fixed left-1/2 top-1/2 z-50 max-h-[88vh] w-[calc(100vw-24px)] max-w-[900px] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-[1.5rem] bg-white p-4 shadow-2xl focus:outline-none focus:ring-4 focus:ring-blue-100 sm:p-5 lg:max-h-[80vh]">
           {item ? (
             <div className="grid gap-3">
               <div className="flex items-start justify-between gap-3">

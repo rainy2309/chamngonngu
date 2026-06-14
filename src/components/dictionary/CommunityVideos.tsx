@@ -264,6 +264,7 @@ function VideoCard({
             className="h-full w-full object-contain"
             controls
             autoPlay
+            playsInline
           />
         ) : (
           <button
