@@ -2,14 +2,17 @@
 
 import { useEffect, useRef, useState } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
-import { Bot, HelpCircle, Loader2, Upload, Video, X, Sparkles, AlertCircle, CheckCircle2 } from "lucide-react";
+import { Bot, HelpCircle, Loader2, Upload, Video, X, Sparkles, AlertCircle, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { createClient, hasSupabaseEnv } from "@/lib/supabase/client";
 import { normalizeVietnameseText } from "@/lib/vietnameseText";
 import { signCategories } from "@/data/signDictionaryData";
-
-const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB
-const ALLOWED_TYPES = ["video/mp4", "video/webm"];
+import {
+  validateVideoFile,
+  logVideoUploadDebug,
+  logVideoUploadSuccess,
+  verifyUploadedSize,
+} from "@/lib/videoUtils";
 
 type WordSuggestionModalProps = {
   isOpen: boolean;
@@ -37,6 +40,7 @@ export function WordSuggestionModal({ isOpen, onClose, initialQuery = "" }: Word
   // Status states
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [warning, setWarning] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
   const fileRef = useRef<HTMLInputElement>(null);
@@ -46,6 +50,7 @@ export function WordSuggestionModal({ isOpen, onClose, initialQuery = "" }: Word
       setTerm(initialQuery);
       setSuccess(false);
       setError(null);
+      setWarning(null);
       setFile(null);
       setMeaning("");
       setSimpleExplanation("");
@@ -73,14 +78,18 @@ export function WordSuggestionModal({ isOpen, onClose, initialQuery = "" }: Word
 
   function handleFile(f: File | undefined) {
     setError(null);
+    setWarning(null);
     if (!f) return;
-    if (!ALLOWED_TYPES.includes(f.type)) {
-      setError("Chỉ chấp nhận file MP4 hoặc WebM.");
+
+    logVideoUploadDebug("WordSuggestionModal - selected file", f);
+
+    const validation = validateVideoFile(f);
+    if (!validation.valid) {
+      setError(validation.error!);
       return;
     }
-    if (f.size > MAX_FILE_SIZE) {
-      setError("File quá lớn. Tối đa 20MB.");
-      return;
+    if (validation.warning) {
+      setWarning(validation.warning);
     }
     setFile(f);
   }
@@ -144,9 +153,12 @@ export function WordSuggestionModal({ isOpen, onClose, initialQuery = "" }: Word
       // 3. Upload video file
       const ext = file.name.split(".").pop() ?? "mp4";
       const path = `suggestions/${user.id}/${normalizedInput}-${Date.now()}.${ext}`;
+      
+      console.log("[WordSuggestionModal] Uploading suggestion video to:", path);
+      
       const { error: uploadError } = await supabase.storage
         .from("sign-videos")
-        .upload(path, file, { contentType: file.type });
+        .upload(path, file, { contentType: file.type || "video/mp4" });
 
       if (uploadError) {
         console.error("Upload storage error:", uploadError);
@@ -156,6 +168,16 @@ export function WordSuggestionModal({ isOpen, onClose, initialQuery = "" }: Word
       }
 
       const { data: urlData } = supabase.storage.from("sign-videos").getPublicUrl(path);
+      logVideoUploadSuccess(path, urlData.publicUrl);
+
+      // Verify file size on Storage
+      const verification = await verifyUploadedSize(urlData.publicUrl, file.size);
+      if (!verification.success) {
+        console.error("[WordSuggestionModal] Size verification failed:", verification.error);
+        setError(`Lỗi xác thực tải lên: ${verification.error || "Kích thước file không khớp."}`);
+        setSubmitting(false);
+        return;
+      }
 
       // Parse learning steps
       const signSteps = learningStepsText
@@ -163,7 +185,7 @@ export function WordSuggestionModal({ isOpen, onClose, initialQuery = "" }: Word
         .map((step) => step.trim())
         .filter(Boolean);
 
-      // 4. Save proposal to dictionary_word_suggestions
+      // 4. Save proposal to dictionary_word_suggestions only after successful upload
       const { error: dbError } = await supabase.from("dictionary_word_suggestions").insert({
         term: cleanTerm,
         normalized_term: normalizedInput,
@@ -201,14 +223,14 @@ export function WordSuggestionModal({ isOpen, onClose, initialQuery = "" }: Word
     <Dialog.Root open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-50 bg-slate-950/45 backdrop-blur-sm" />
-        <Dialog.Content aria-describedby={undefined} className="scrollbar-hide fixed left-1/2 top-1/2 z-50 flex max-h-[85vh] w-[calc(100vw-24px)] max-w-[620px] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-[1.35rem] border border-blue-100 bg-white shadow-2xl focus:outline-none dark:border-slate-800 dark:bg-slate-900">
+        <Dialog.Content className="scrollbar-hide fixed left-1/2 top-1/2 z-50 flex max-h-[85vh] w-[calc(100vw-24px)] max-w-[620px] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-[1.35rem] border border-blue-100 bg-white shadow-2xl focus:outline-none dark:border-slate-800 dark:bg-slate-900">
           
           {/* Header */}
           <div className="flex shrink-0 items-center justify-between border-b border-blue-100 p-4 dark:border-slate-800 sm:px-6">
-            <Dialog.Title className="flex items-center gap-2 text-lg font-black text-slate-950 dark:text-white">
+            <h2 className="flex items-center gap-2 text-lg font-black text-slate-950 dark:text-white">
               <HelpCircle className="h-5 w-5 text-blue-500" />
               Đóng góp từ mới vào từ điển
-            </Dialog.Title>
+            </h2>
             <Dialog.Close asChild>
               <button type="button" className="grid h-8 w-8 place-items-center rounded-full bg-slate-100 text-slate-600 hover:bg-blue-50 dark:bg-slate-800 dark:text-slate-200">
                 <X className="h-4 w-4" />
@@ -419,6 +441,14 @@ export function WordSuggestionModal({ isOpen, onClose, initialQuery = "" }: Word
                 <p className="rounded-xl bg-amber-50 p-3 text-xs font-semibold leading-5 text-amber-800 dark:bg-amber-950/20 dark:text-amber-300">
                   ⚠️ Đề xuất của bạn sẽ được kiểm duyệt bởi ban chuyên môn trước khi xuất bản chính thức lên CHẠM.
                 </p>
+
+                {/* Warning alert */}
+                {warning && (
+                  <div className="flex items-center gap-2 rounded-xl bg-amber-50 p-3 text-sm font-semibold text-amber-755 dark:bg-amber-950/20 dark:text-amber-300">
+                    <AlertTriangle className="h-4 w-4 shrink-0" />
+                    <span>{warning}</span>
+                  </div>
+                )}
 
                 {/* Error alert */}
                 {error && (

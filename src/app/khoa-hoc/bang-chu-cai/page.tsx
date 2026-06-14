@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { Bookmark, Check, CheckCircle2, ImageIcon, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { SafeVideo } from "@/components/ui/safe-video";
 import { alphabetSignData, type AlphabetItemType, type AlphabetSignItem } from "@/data/alphabetSignData";
 import { learningStorageKeys, saveLearningItem } from "@/lib/localLearning";
 import { createClient, hasSupabaseEnv } from "@/lib/supabase/client";
@@ -124,16 +125,14 @@ function DetailMediaBox({ item }: { item: BoardAlphabetItem }) {
   if (item.video_url) {
     return (
       <div className="flex aspect-[4/3] min-h-32 w-full items-center justify-center overflow-hidden rounded-xl bg-slate-950">
-        <video
+        <SafeVideo
           src={item.video_url}
           poster={item.thumbnail_url ?? undefined}
           controls
           preload="metadata"
-          className="max-h-[260px] w-full rounded-xl object-contain sm:max-h-[320px] lg:max-h-[360px]"
           playsInline
-        >
-          Trình duyệt của bạn không hỗ trợ video.
-        </video>
+          className="max-h-[260px] w-full rounded-xl object-contain sm:max-h-[320px] lg:max-h-[360px]"
+        />
       </div>
     );
   }
@@ -282,7 +281,7 @@ function DetailModal({
     <Dialog.Root open={Boolean(item)} onOpenChange={onOpenChange}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-50 bg-slate-950/45 backdrop-blur-sm" />
-        <Dialog.Content aria-describedby={undefined} className="scrollbar-hide fixed left-1/2 top-1/2 z-50 max-h-[88vh] w-[calc(100vw-24px)] max-w-[900px] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-[1.5rem] bg-white p-4 shadow-2xl focus:outline-none focus:ring-4 focus:ring-blue-100 sm:p-5 lg:max-h-[80vh]">
+        <Dialog.Content className="scrollbar-hide fixed left-1/2 top-1/2 z-50 max-h-[88vh] w-[calc(100vw-24px)] max-w-[900px] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-[1.5rem] bg-white p-4 shadow-2xl focus:outline-none focus:ring-4 focus:ring-blue-100 sm:p-5 lg:max-h-[80vh]">
           {item ? (
             <div className="grid gap-3">
               <div className="flex items-start justify-between gap-3">

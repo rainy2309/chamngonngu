@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Clock, Play, Plus, Trash2, Upload, Video, User, LogIn } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { SafeVideo } from "@/components/ui/safe-video";
 import { UserAvatar } from "@/components/common/UserAvatar";
 import { createClient, hasSupabaseEnv } from "@/lib/supabase/client";
 import { VideoUploadForm } from "./VideoUploadForm";
@@ -259,11 +260,12 @@ function VideoCard({
       {/* Video area */}
       <div className="relative aspect-video w-full bg-slate-950">
         {playing ? (
-          <video
+          <SafeVideo
             src={video.video_url}
             className="h-full w-full object-contain"
             controls
             autoPlay
+            preload="metadata"
             playsInline
           />
         ) : (

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Award, Brain, ImageIcon, Loader2, RotateCcw, Sparkles, Tags } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { SafeVideo } from "@/components/ui/safe-video";
 import { Card, CardContent } from "@/components/ui/card";
 import { alphabetSignData } from "@/data/alphabetSignData";
 import { vocabularyCourseData } from "@/data/vocabularyCourseData";
@@ -124,7 +125,7 @@ function MediaQuestion({ item }: { item: PracticeItem }) {
   if (item.mediaUrl && item.mediaKind === "video") {
     return (
       <div className="flex h-[220px] w-full items-center justify-center overflow-hidden rounded-[1.5rem] bg-slate-950 sm:h-[300px]">
-        <video src={item.mediaUrl} controls preload="metadata" className="h-full w-full object-contain" />
+        <SafeVideo src={item.mediaUrl} controls preload="metadata" playsInline className="h-full w-full object-contain" />
       </div>
     );
   }

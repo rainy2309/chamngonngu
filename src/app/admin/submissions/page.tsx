@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Check, Loader2, X, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { SafeVideo } from "@/components/ui/safe-video";
 import { createClient, hasSupabaseEnv } from "@/lib/supabase/client";
 
 type Submission = {
@@ -104,11 +105,9 @@ export default function AdminSubmissionsPage() {
             >
               <div className="relative aspect-video w-full bg-slate-900">
                 {s.video_url ? (
-                  <video
+                  <SafeVideo
                     src={s.video_url}
-                    controls
                     className="h-full w-full object-contain"
-                    playsInline
                   />
                 ) : (
                   <div className="flex h-full w-full items-center justify-center text-slate-500">

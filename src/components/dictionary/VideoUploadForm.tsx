@@ -1,12 +1,15 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Loader2, Upload, Video, X } from "lucide-react";
+import { Loader2, Upload, Video, X, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { createClient, hasSupabaseEnv } from "@/lib/supabase/client";
-
-const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB
-const ALLOWED_TYPES = ["video/mp4", "video/webm"];
+import {
+  validateVideoFile,
+  logVideoUploadDebug,
+  logVideoUploadSuccess,
+  verifyUploadedSize,
+} from "@/lib/videoUtils";
 
 type VideoUploadFormProps = {
   wordId: string;
@@ -19,20 +22,28 @@ export function VideoUploadForm({ wordId, wordText, onClose }: VideoUploadFormPr
   const [description, setDescription] = useState("");
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [warning, setWarning] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   function handleFile(f: File | undefined) {
     setError(null);
+    setWarning(null);
     if (!f) return;
-    if (!ALLOWED_TYPES.includes(f.type)) {
-      setError("Chỉ chấp nhận file MP4 hoặc WebM.");
+
+    // Debug log
+    logVideoUploadDebug("Community upload - file selected", f, { wordId, wordText });
+
+    // Validate type and size
+    const validation = validateVideoFile(f);
+    if (!validation.valid) {
+      setError(validation.error!);
       return;
     }
-    if (f.size > MAX_FILE_SIZE) {
-      setError("File quá lớn. Tối đa 20MB.");
-      return;
+    if (validation.warning) {
+      setWarning(validation.warning);
     }
+
     setFile(f);
   }
 
@@ -53,18 +64,36 @@ export function VideoUploadForm({ wordId, wordText, onClose }: VideoUploadFormPr
       }
 
       const ext = file.name.split(".").pop() ?? "mp4";
-      const path = `contributions/${user.id}/${wordId}-${Date.now()}.${ext}`;
+      const cleanedWordId = wordId.replace(/[^a-zA-Z0-9-]/g, "_");
+      const path = `contributions/${user.id}/${cleanedWordId}-${Date.now()}.${ext}`;
+
+      console.log("[VideoUploadForm] Uploading to:", path);
+
+      // Upload with explicit contentType
       const { error: uploadError } = await supabase.storage
         .from("sign-videos")
-        .upload(path, file, { contentType: file.type });
+        .upload(path, file, {
+          contentType: file.type || "video/mp4",
+          cacheControl: "3600",
+        });
 
       if (uploadError) {
-        console.error("Upload error:", uploadError);
+        console.error("[VideoUploadForm] Upload error:", uploadError);
         setError("Không thể tải lên video. Vui lòng thử lại.");
         return;
       }
 
       const { data: urlData } = supabase.storage.from("sign-videos").getPublicUrl(path);
+      logVideoUploadSuccess(path, urlData.publicUrl);
+
+      // Verify file size on Storage
+      const verification = await verifyUploadedSize(urlData.publicUrl, file.size);
+      if (!verification.success) {
+        console.error("[VideoUploadForm] Size verification failed:", verification.error);
+        setError(`Lỗi xác thực tải lên: ${verification.error || "Kích thước file không khớp."}`);
+        setUploading(false);
+        return;
+      }
 
       // Fail-safe: Ensure user profile exists before inserting contributions
       const { data: profile } = await supabase
@@ -82,6 +111,7 @@ export function VideoUploadForm({ wordId, wordText, onClose }: VideoUploadFormPr
         });
       }
 
+      // Only insert DB AFTER upload succeeded
       const { error: dbError } = await supabase.from("word_contributions").insert({
         user_id: user.id,
         word_id: wordId,
@@ -91,14 +121,14 @@ export function VideoUploadForm({ wordId, wordText, onClose }: VideoUploadFormPr
       });
 
       if (dbError) {
-        console.error("DB error:", dbError);
+        console.error("[VideoUploadForm] DB error:", dbError);
         setError("Không thể lưu đóng góp. Vui lòng thử lại.");
         return;
       }
 
       setSuccess(true);
     } catch (err) {
-      console.error("Upload error:", err);
+      console.error("[VideoUploadForm] Upload error:", err);
       setError("Đã xảy ra lỗi. Vui lòng thử lại.");
     } finally {
       setUploading(false);
@@ -173,6 +203,13 @@ export function VideoUploadForm({ wordId, wordText, onClose }: VideoUploadFormPr
       <p className="mt-3 rounded-xl bg-amber-50 p-3 text-xs font-semibold leading-5 text-amber-800">
         ⚠️ Video sẽ được kiểm duyệt bởi Giáo viên hoặc Quản trị viên trước khi hiển thị công khai.
       </p>
+
+      {warning ? (
+        <div className="mt-3 flex items-center gap-2 rounded-xl bg-amber-50 p-3 text-sm font-semibold text-amber-700">
+          <AlertTriangle className="h-4 w-4 shrink-0" />
+          <span>{warning}</span>
+        </div>
+      ) : null}
 
       {error ? (
         <p className="mt-3 rounded-xl bg-red-50 p-3 text-sm font-semibold text-red-700">{error}</p>

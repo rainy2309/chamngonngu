@@ -5,6 +5,7 @@ import Link from "next/link";
 import * as Dialog from "@radix-ui/react-dialog";
 import { Bookmark, CheckCircle2, ImageIcon, Loader2, Search, Sparkles, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { SafeVideo } from "@/components/ui/safe-video";
 import { vocabularyCourseData } from "@/data/vocabularyCourseData";
 import { vocabularyCourseTopics } from "@/data/vocabularyCourseTopics";
 import { createClient, hasSupabaseEnv } from "@/lib/supabase/client";
@@ -130,7 +131,14 @@ function MediaPreview({ item }: { item: VocabularyCourseItem }) {
   if (item.video_url) {
     return (
       <div className="flex h-[170px] w-full items-center justify-center overflow-hidden rounded-2xl bg-slate-950 sm:h-[200px] lg:h-[220px]">
-        <video src={item.video_url} poster={item.thumbnail_url ?? undefined} controls preload="metadata" className="h-full w-full object-contain" playsInline />
+        <SafeVideo
+          src={item.video_url}
+          poster={item.thumbnail_url ?? undefined}
+          controls
+          preload="metadata"
+          playsInline
+          className="h-full w-full object-contain"
+        />
       </div>
     );
   }
@@ -182,7 +190,7 @@ function VocabularyDetailModal({
     <Dialog.Root open={Boolean(item)} onOpenChange={(open) => !open && onClose()}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-50 bg-slate-950/45 backdrop-blur-sm" />
-        <Dialog.Content aria-describedby={undefined} className="scrollbar-hide fixed left-1/2 top-1/2 z-50 max-h-[86vh] w-[calc(100vw-24px)] max-w-[900px] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-[1.35rem] border border-blue-100 bg-white p-4 shadow-2xl focus:outline-none focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-900 sm:p-5">
+        <Dialog.Content className="scrollbar-hide fixed left-1/2 top-1/2 z-50 max-h-[86vh] w-[calc(100vw-24px)] max-w-[900px] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-[1.35rem] border border-blue-100 bg-white p-4 shadow-2xl focus:outline-none focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-900 sm:p-5">
           {item ? (
             <div className="grid gap-4">
               <div className="flex items-start justify-between gap-3">
