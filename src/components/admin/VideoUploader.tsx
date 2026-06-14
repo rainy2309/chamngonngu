@@ -71,17 +71,22 @@ export function VideoUploader({ videoUrl, onChange, folder, idKey }: VideoUpload
 
     try {
       // 3. Validate duration (<= 30s)
-      console.log("[DEBUG] VideoUploader - Reading video duration...");
-      const duration = await getVideoDuration(file);
-      console.log("[DEBUG] VideoUploader - Video duration:", duration, "seconds");
+      let duration = 0;
+      try {
+        console.log("[DEBUG] VideoUploader - Reading video duration...");
+        duration = await getVideoDuration(file);
+        console.log("[DEBUG] VideoUploader - Video duration:", duration, "seconds");
 
-      if (duration > 30) {
-        const errorMsg = `Thời lượng video vượt quá 30 giây (Độ dài hiện tại: ${duration.toFixed(1)} giây).`;
-        console.warn("[DEBUG] VideoUploader - Validation failed (duration):", duration);
-        setError(errorMsg);
-        if (fileInputRef.current) fileInputRef.current.value = "";
-        setUploading(false);
-        return;
+        if (duration > 30) {
+          const errorMsg = `Thời lượng video vượt quá 30 giây (Độ dài hiện tại: ${duration.toFixed(1)} giây).`;
+          console.warn("[DEBUG] VideoUploader - Validation failed (duration):", duration);
+          setError(errorMsg);
+          if (fileInputRef.current) fileInputRef.current.value = "";
+          setUploading(false);
+          return;
+        }
+      } catch (metaErr) {
+        console.warn("[DEBUG] VideoUploader - Could not read video metadata/duration (probably due to unsupported browser codec):", metaErr);
       }
 
       const supabase = createClient();
