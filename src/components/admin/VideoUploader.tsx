@@ -16,15 +16,44 @@ function getVideoDuration(file: File): Promise<number> {
   return new Promise((resolve, reject) => {
     const video = document.createElement("video");
     video.preload = "metadata";
+    video.playsInline = true;
+    video.muted = true;
+    
+    // Hide the temporary video element completely
+    video.style.position = "absolute";
+    video.style.width = "0px";
+    video.style.height = "0px";
+    video.style.opacity = "0";
+    video.style.pointerEvents = "none";
+    document.body.appendChild(video);
+
+    const cleanup = () => {
+      try {
+        window.URL.revokeObjectURL(video.src);
+        video.remove();
+      } catch (e) {
+        console.error("Cleanup error in getVideoDuration:", e);
+      }
+    };
+
     video.onloadedmetadata = () => {
-      window.URL.revokeObjectURL(video.src);
-      resolve(video.duration);
+      const duration = video.duration;
+      cleanup();
+      resolve(duration);
     };
+
     video.onerror = () => {
-      window.URL.revokeObjectURL(video.src);
-      reject("Không thể đọc metadata của file video.");
+      const err = video.error;
+      console.error("[DEBUG] getVideoDuration - Video element error details:", {
+        code: err?.code,
+        message: err?.message
+      });
+      cleanup();
+      reject(`Không thể đọc metadata của file video. (Mã lỗi: ${err?.code || 'Không rõ'})`);
     };
+
     video.src = window.URL.createObjectURL(file);
+    video.load();
   });
 }
 
@@ -71,22 +100,17 @@ export function VideoUploader({ videoUrl, onChange, folder, idKey }: VideoUpload
 
     try {
       // 3. Validate duration (<= 30s)
-      let duration = 0;
-      try {
-        console.log("[DEBUG] VideoUploader - Reading video duration...");
-        duration = await getVideoDuration(file);
-        console.log("[DEBUG] VideoUploader - Video duration:", duration, "seconds");
+      console.log("[DEBUG] VideoUploader - Reading video duration...");
+      const duration = await getVideoDuration(file);
+      console.log("[DEBUG] VideoUploader - Video duration:", duration, "seconds");
 
-        if (duration > 30) {
-          const errorMsg = `Thời lượng video vượt quá 30 giây (Độ dài hiện tại: ${duration.toFixed(1)} giây).`;
-          console.warn("[DEBUG] VideoUploader - Validation failed (duration):", duration);
-          setError(errorMsg);
-          if (fileInputRef.current) fileInputRef.current.value = "";
-          setUploading(false);
-          return;
-        }
-      } catch (metaErr) {
-        console.warn("[DEBUG] VideoUploader - Could not read video metadata/duration (probably due to unsupported browser codec):", metaErr);
+      if (duration > 30) {
+        const errorMsg = `Thời lượng video vượt quá 30 giây (Độ dài hiện tại: ${duration.toFixed(1)} giây).`;
+        console.warn("[DEBUG] VideoUploader - Validation failed (duration):", duration);
+        setError(errorMsg);
+        if (fileInputRef.current) fileInputRef.current.value = "";
+        setUploading(false);
+        return;
       }
 
       const supabase = createClient();
