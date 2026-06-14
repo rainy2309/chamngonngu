@@ -1,8 +1,19 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { Loader2, Film, X, UploadCloud, AlertCircle } from "lucide-react";
+import { Loader2, Film, X, UploadCloud, AlertCircle, AlertTriangle } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { SafeVideo } from "@/components/ui/safe-video";
+import {
+  readVideoMetadata,
+  validateVideoFile,
+  logVideoUploadDebug,
+  logVideoMetadataError,
+  logVideoUploadSuccess,
+  sanitizeStoragePath,
+  MAX_VIDEO_DURATION_SECONDS,
+  verifyUploadedSize,
+} from "@/lib/videoUtils";
 
 interface VideoUploaderProps {
   videoUrl: string;
@@ -11,26 +22,10 @@ interface VideoUploaderProps {
   idKey?: string;
 }
 
-// Helper function to read video duration using standard HTML5 video element metadata
-function getVideoDuration(file: File): Promise<number> {
-  return new Promise((resolve, reject) => {
-    const video = document.createElement("video");
-    video.preload = "metadata";
-    video.onloadedmetadata = () => {
-      window.URL.revokeObjectURL(video.src);
-      resolve(video.duration);
-    };
-    video.onerror = () => {
-      window.URL.revokeObjectURL(video.src);
-      reject("Không thể đọc metadata của file video.");
-    };
-    video.src = window.URL.createObjectURL(file);
-  });
-}
-
 export function VideoUploader({ videoUrl, onChange, folder, idKey }: VideoUploaderProps) {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
+  const [warning, setWarning] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   async function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
@@ -39,89 +34,98 @@ export function VideoUploader({ videoUrl, onChange, folder, idKey }: VideoUpload
 
     const file = files[0];
     setError("");
+    setWarning("");
 
-    console.log("[DEBUG] VideoUploader - Selected file details:", {
-      name: file.name,
-      type: file.type,
-      sizeBytes: file.size,
-      sizeMB: (file.size / (1024 * 1024)).toFixed(2) + " MB",
-    });
+    // Debug log with browser info
+    logVideoUploadDebug("Selected file", file);
 
-    // 1. Validate type (MP4/WebM)
-    const validTypes = ["video/mp4", "video/webm"];
-    if (!validTypes.includes(file.type)) {
-      const errorMsg = "Chỉ chấp nhận file video định dạng MP4 hoặc WebM.";
-      console.warn("[DEBUG] VideoUploader - Validation failed (type):", file.type);
-      setError(errorMsg);
+    // 1. Validate type and size (hard block)
+    const validation = validateVideoFile(file);
+    if (!validation.valid) {
+      console.warn("[VideoUploader] Validation failed:", validation.error);
+      setError(validation.error!);
       if (fileInputRef.current) fileInputRef.current.value = "";
       return;
     }
-
-    // 2. Validate size (20MB)
-    const maxSize = 20 * 1024 * 1024;
-    if (file.size > maxSize) {
-      const errorMsg = `Dung lượng file vượt quá giới hạn 20MB (File size: ${(file.size / (1024 * 1024)).toFixed(2)} MB).`;
-      console.warn("[DEBUG] VideoUploader - Validation failed (size):", file.size);
-      setError(errorMsg);
-      if (fileInputRef.current) fileInputRef.current.value = "";
-      return;
+    if (validation.warning) {
+      setWarning(validation.warning);
     }
 
     setUploading(true);
 
     try {
-      // 3. Validate duration (<= 30s)
-      console.log("[DEBUG] VideoUploader - Reading video duration...");
-      const duration = await getVideoDuration(file);
-      console.log("[DEBUG] VideoUploader - Video duration:", duration, "seconds");
+      // 2. Try to read metadata (non-blocking on failure)
+      let metadataWarning = "";
+      try {
+        console.log("[VideoUploader] Reading video metadata...");
+        const metadata = await readVideoMetadata(file);
+        console.log("[VideoUploader] Metadata read success:", metadata);
 
-      if (duration > 30) {
-        const errorMsg = `Thời lượng video vượt quá 30 giây (Độ dài hiện tại: ${duration.toFixed(1)} giây).`;
-        console.warn("[DEBUG] VideoUploader - Validation failed (duration):", duration);
-        setError(errorMsg);
-        if (fileInputRef.current) fileInputRef.current.value = "";
-        setUploading(false);
-        return;
+        // Only block if duration is confirmed to be over the limit
+        if (metadata.duration !== null && metadata.duration > MAX_VIDEO_DURATION_SECONDS) {
+          const errorMsg = `Thời lượng video vượt quá ${MAX_VIDEO_DURATION_SECONDS} giây (Độ dài hiện tại: ${metadata.duration.toFixed(1)} giây).`;
+          console.warn("[VideoUploader] Duration exceeded:", metadata.duration);
+          setError(errorMsg);
+          if (fileInputRef.current) fileInputRef.current.value = "";
+          setUploading(false);
+          return;
+        }
+      } catch (metaErr: any) {
+        // Metadata failure is NOT a hard block — warn and continue
+        logVideoMetadataError(file, metaErr);
+        metadataWarning =
+          "Không thể đọc metadata video trên trình duyệt hiện tại. " +
+          "Bạn vẫn có thể tải video lên để kiểm duyệt. Chi tiết: " + (metaErr.message || String(metaErr));
+        setWarning(metadataWarning);
+        console.warn("[VideoUploader] Metadata read failed, continuing with upload:", metaErr);
       }
 
+      // 3. Upload to Supabase Storage with correct contentType
       const supabase = createClient();
-      const timestamp = Date.now();
-      const cleanedFileName = file.name.replace(/[^a-zA-Z0-9.]/g, "_");
-      
-      // Clean up idKey to be safe for directory structure
-      const subFolder = idKey ? idKey.replace(/[^a-zA-Z0-9-]/g, "_") : "general";
-      const filePath = `${folder}/${subFolder}/${timestamp}-${cleanedFileName}`;
+      const subFolder = idKey || "general";
+      const filePath = sanitizeStoragePath(folder, subFolder, file.name);
 
-      console.log("[DEBUG] VideoUploader - Target file path in storage:", filePath);
+      console.log("[VideoUploader] Uploading to storage path:", filePath);
 
-      // 4. Upload file to Supabase Storage bucket 'sign-videos'
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from("sign-videos")
         .upload(filePath, file, {
+          contentType: file.type || "video/mp4",
           cacheControl: "3600",
           upsert: true,
         });
 
       if (uploadError) {
-        console.error("[DEBUG] VideoUploader - Supabase storage upload API error:", uploadError);
-        throw new Error(`Supabase Storage Upload Error: ${uploadError.message} (Status: ${uploadError.name || "Unknown"})`);
+        console.error("[VideoUploader] Supabase storage upload error:", uploadError);
+        throw new Error(
+          `Supabase Storage Upload Error: ${uploadError.message} (Status: ${uploadError.name || "Unknown"})`
+        );
       }
 
-      console.log("[DEBUG] VideoUploader - Upload success data:", uploadData);
+      console.log("[VideoUploader] Upload success:", uploadData);
 
-      // 5. Call getPublicUrl only after successful upload
+      // 4. Get public URL only after successful upload
       if (uploadData) {
         const { data: urlData } = supabase.storage
           .from("sign-videos")
           .getPublicUrl(filePath);
-        
-        console.log("[DEBUG] VideoUploader - Generated public URL:", urlData.publicUrl);
-        
-        // 6. Update video_url state/parent only after successful getPublicUrl
+
+        logVideoUploadSuccess(filePath, urlData.publicUrl);
+
+        // 5. Verify file size on Storage
+        const verification = await verifyUploadedSize(urlData.publicUrl, file.size);
+        if (!verification.success) {
+          console.error("[VideoUploader] Size verification failed:", verification.error);
+          setError(`Lỗi xác thực tải lên: ${verification.error || "Kích thước file không khớp."}`);
+          setUploading(false);
+          return;
+        }
+
+        // 6. Update parent state only after everything succeeds
         onChange(urlData.publicUrl);
       }
     } catch (err: any) {
-      console.error("[DEBUG] VideoUploader - Execution exception during upload flow:", err);
+      console.error("[VideoUploader] Upload flow exception:", err);
       setError("Không thể tải video lên storage: " + (err.message || String(err)));
     } finally {
       setUploading(false);
@@ -131,6 +135,7 @@ export function VideoUploader({ videoUrl, onChange, folder, idKey }: VideoUpload
 
   function handleRemove() {
     onChange("");
+    setWarning("");
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
@@ -142,11 +147,9 @@ export function VideoUploader({ videoUrl, onChange, folder, idKey }: VideoUpload
 
       {videoUrl ? (
         <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 p-2 shadow-inner">
-          <video
+          <SafeVideo
             src={videoUrl}
-            controls
             className="aspect-video w-full rounded-xl bg-black object-contain"
-            playsInline
           />
           <button
             type="button"
@@ -181,10 +184,17 @@ export function VideoUploader({ videoUrl, onChange, folder, idKey }: VideoUpload
               </div>
               <div>
                 <p className="font-bold text-slate-800">Tải file video lên</p>
-                <p className="mt-1 text-xs text-slate-500">Chấp nhận MP4, WebM (Tối đa 20MB)</p>
+                <p className="mt-1 text-xs text-slate-500">Chấp nhận MP4, WebM (Tối đa 20MB, tối đa 30 giây)</p>
               </div>
             </>
           )}
+        </div>
+      )}
+
+      {warning && (
+        <div className="flex items-center gap-2 rounded-xl bg-amber-50 p-3 text-sm font-semibold text-amber-700">
+          <AlertTriangle className="h-5 w-5 shrink-0" />
+          <span>{warning}</span>
         </div>
       )}
 

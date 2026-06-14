@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Check, Loader2, X, Trash2, Calendar, BookOpen, AlertCircle, Edit2, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { SafeVideo } from "@/components/ui/safe-video";
 import { createClient, hasSupabaseEnv } from "@/lib/supabase/client";
 import { getVietnameseFirstLetter, normalizeVietnameseText } from "@/lib/vietnameseText";
 import { signCategories } from "@/data/signDictionaryData";
@@ -317,7 +318,10 @@ export default function AdminSuggestionsPage() {
                 {/* Left: Video */}
                 <div className="relative aspect-video bg-slate-900 lg:w-[320px] lg:shrink-0">
                   {s.video_url ? (
-                    <video src={s.video_url} controls className="h-full w-full object-contain" playsInline />
+                    <SafeVideo
+                      src={s.video_url}
+                      className="h-full w-full object-contain"
+                    />
                   ) : (
                     <div className="flex h-full w-full items-center justify-center text-slate-500">
                       <span className="text-xs font-semibold">Không có video</span>
