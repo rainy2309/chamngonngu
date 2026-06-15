@@ -14,6 +14,7 @@ import { getProgressDisplayInfo } from "@/lib/progressDisplay";
 import { createClient, hasSupabaseEnv } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import { normalizeVietnameseText } from "@/lib/vietnameseText";
+import { normalizeLetterKey } from "@/lib/videoUtils";
 
 type Mode = "quick" | "topic";
 type MediaKind = "video" | "gif" | "image";
@@ -204,13 +205,14 @@ export default function PracticePage() {
         }));
 
         const alphabetItems: PracticeItem[] = (alphabetRows ?? []).map((row: any) => {
+          const normalizedKey = normalizeLetterKey(String(row.letter_key ?? ""));
           const label = String(row.display_label ?? row.label ?? row.letter_key ?? "");
           const boardImageUrl = row.board_image_url
             ? `${row.board_image_url}?t=${row.updated_at ? new Date(row.updated_at).getTime() : Date.now()}`
             : null;
           return {
-            id: String(row.letter_key ?? row.id),
-            keys: [row.id, row.letter_key, `alphabet-${row.letter_key}`, row.label, row.display_label].filter(Boolean).map(String),
+            id: normalizedKey,
+            keys: [row.id, normalizedKey, `alphabet-${normalizedKey}`, row.label, row.display_label].filter(Boolean).map(String),
             word: label,
             category: row.type === "tone_mark" ? "Dấu thanh" : "Bảng chữ cái",
             description: String(row.description ?? row.explanation ?? row.title ?? ""),

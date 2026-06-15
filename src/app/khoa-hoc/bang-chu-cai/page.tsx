@@ -9,6 +9,7 @@ import { alphabetSignData, type AlphabetItemType, type AlphabetSignItem } from "
 import { learningStorageKeys, saveLearningItem } from "@/lib/localLearning";
 import { createClient, hasSupabaseEnv } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
+import { normalizeLetterKey } from "@/lib/videoUtils";
 
 const learnedAlphabetKey = "cham_learned_alphabet";
 const favoriteSignsKey = "cham_favorite_signs";
@@ -389,7 +390,7 @@ export default function AlphabetCoursePage() {
 
         const imageByKey = new Map(
           (data ?? []).map((row) => [
-            String(row.letter_key),
+            normalizeLetterKey(String(row.letter_key)),
             {
               media_id: row.id as string | null,
               letter: typeof row.letter === "string" ? row.letter : undefined,
