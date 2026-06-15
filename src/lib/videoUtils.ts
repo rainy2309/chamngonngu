@@ -255,3 +255,20 @@ export function sanitizeStoragePath(
   const timestamp = Date.now();
   return `${folder}/${cleanedSubFolder}/${timestamp}-${cleanedFileName}`;
 }
+
+/**
+ * Normalizes letter keys from the database to match the local keys defined in alphabetSignData.ts
+ */
+export function normalizeLetterKey(dbKey: string): string {
+  const normalized = dbKey.trim().toLowerCase();
+  if (normalized === "đ") return "dd";
+  if (normalized === "ă") return "breve_group";
+  if (normalized === "ư / ơ" || normalized === "ư/ơ") return "horn_group";
+  if (normalized === "â / ê / ô" || normalized === "â/ê/ô") return "circumflex_group";
+  if (normalized === "dấu sắc" || normalized === "sắc") return "sac";
+  if (normalized === "dấu huyền" || normalized === "huyền") return "huyen";
+  if (normalized === "dấu hỏi" || normalized === "hỏi") return "hoi";
+  if (normalized === "dấu ngã" || normalized === "ngã") return "nga";
+  if (normalized === "dấu nặng" || normalized === "nặng") return "nang";
+  return normalized;
+}
