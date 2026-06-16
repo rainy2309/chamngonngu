@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import * as Dialog from "@radix-ui/react-dialog";
 import { Bookmark, CheckCircle2, ImageIcon, Loader2, Search, Sparkles, X } from "lucide-react";
+import { ModalNavigation } from "@/components/common/ModalNavigation";
 import { Button } from "@/components/ui/button";
 import { vocabularyCourseData } from "@/data/vocabularyCourseData";
 import { vocabularyCourseTopics } from "@/data/vocabularyCourseTopics";
@@ -101,6 +102,10 @@ function getVocabularyItemKey(item: VocabularyCourseItem, index: number) {
   return item.id || `${item.category}-${index}-${item.word_key || item.word}`;
 }
 
+function getVocabularyIdentity(item: VocabularyCourseItem) {
+  return item.id || item.word_key || `${item.category}-${item.word}`;
+}
+
 function getVocabularyProgressKeys(item: VocabularyCourseItem) {
   const categorySlug = slugifyTopic(item.category);
   const wordSlug = slugifyTopic(item.word);
@@ -126,11 +131,29 @@ function slugifyTopic(value: string) {
 
 function MediaPreview({ item }: { item: VocabularyCourseItem }) {
   const [failed, setFailed] = useState(false);
+  const [autoplayBlocked, setAutoplayBlocked] = useState(false);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+
+  useEffect(() => {
+    setAutoplayBlocked(false);
+    if (!item.video_url || !videoRef.current) return;
+
+    const video = videoRef.current;
+    video.currentTime = 0;
+    video.load();
+    const playPromise = video.play();
+    if (playPromise) {
+      playPromise.catch(() => setAutoplayBlocked(true));
+    }
+  }, [item.id, item.video_url]);
 
   if (item.video_url) {
     return (
-      <div className="flex h-[170px] w-full items-center justify-center overflow-hidden rounded-2xl bg-slate-950 sm:h-[200px] lg:h-[220px]">
-        <video src={item.video_url} poster={item.thumbnail_url ?? undefined} controls preload="metadata" className="h-full w-full object-contain" />
+      <div className="grid gap-2">
+        <div className="flex h-[170px] w-full items-center justify-center overflow-hidden rounded-2xl bg-slate-950 sm:h-[200px] lg:h-[220px]">
+          <video ref={videoRef} src={item.video_url} poster={item.thumbnail_url ?? undefined} controls autoPlay muted playsInline preload="metadata" className="h-full w-full object-contain" />
+        </div>
+        {autoplayBlocked ? <p className="text-center text-xs font-bold text-slate-500 dark:text-slate-300">Nhấn để phát video</p> : null}
       </div>
     );
   }
@@ -170,6 +193,10 @@ function VocabularyDetailModal({
   onClose,
   onLearned,
   onFavorite,
+  currentIndex,
+  total,
+  onPrevious,
+  onNext,
 }: {
   item: VocabularyCourseItem | null;
   learned: boolean;
@@ -177,14 +204,21 @@ function VocabularyDetailModal({
   onClose: () => void;
   onLearned: () => void;
   onFavorite: () => void;
+  currentIndex: number;
+  total: number;
+  onPrevious: () => void;
+  onNext: () => void;
 }) {
   return (
     <Dialog.Root open={Boolean(item)} onOpenChange={(open) => !open && onClose()}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-50 bg-slate-950/45 backdrop-blur-sm" />
-        <Dialog.Content className="scrollbar-hide fixed left-1/2 top-1/2 z-50 max-h-[86vh] w-[calc(100vw-24px)] max-w-[900px] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-[1.35rem] border border-blue-100 bg-white p-4 shadow-2xl focus:outline-none focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-900 sm:p-5">
+        <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[calc(100vw-24px)] max-w-[900px] -translate-x-1/2 -translate-y-1/2 overflow-visible focus:outline-none">
           {item ? (
-            <div className="grid gap-4">
+            <div className="relative overflow-visible">
+              <ModalNavigation variant="desktop" open={Boolean(item)} currentIndex={currentIndex} total={total} onPrevious={onPrevious} onNext={onNext} />
+              <div className="scrollbar-hide max-h-[86vh] overflow-y-auto rounded-[1.35rem] border border-blue-100 bg-white p-4 shadow-2xl focus:outline-none focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-900 sm:p-5">
+            <div className="relative grid gap-4">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <p className="w-fit rounded-full bg-blue-50 px-3 py-1 text-xs font-black text-blue-700 dark:bg-blue-500/15 dark:text-blue-100">{item.category}</p>
@@ -196,6 +230,8 @@ function VocabularyDetailModal({
                   </button>
                 </Dialog.Close>
               </div>
+
+              <ModalNavigation variant="mobile" enableKeyboard={false} open={Boolean(item)} currentIndex={currentIndex} total={total} onPrevious={onPrevious} onNext={onNext} />
 
               <div className="grid gap-4 lg:grid-cols-[0.38fr_0.62fr] lg:items-start">
                 <MediaPreview item={item} />
@@ -259,6 +295,8 @@ function VocabularyDetailModal({
                 <Dialog.Close asChild>
                   <Button variant="outline" className="min-h-11 rounded-full text-sm">Đóng</Button>
                 </Dialog.Close>
+              </div>
+            </div>
               </div>
             </div>
           ) : null}
@@ -348,6 +386,14 @@ function markLearned(item: VocabularyCourseItem) {
 
   const selectedIsLearned = selectedItem ? hasVocabularyProgress(learned, selectedItem) : false;
   const selectedIsFavorite = selectedItem ? hasVocabularyProgress(favorites, selectedItem) : false;
+  const selectedIndex = selectedItem
+    ? filteredItems.findIndex((item) => getVocabularyIdentity(item) === getVocabularyIdentity(selectedItem))
+    : -1;
+
+  function selectByIndex(index: number) {
+    const nextItem = filteredItems[index];
+    if (nextItem) setSelectedItem(nextItem);
+  }
 
   return (
     <main className="flex-1 bg-gradient-to-b from-blue-50 via-white to-white px-4 py-8 text-slate-950 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900 dark:text-slate-50 sm:px-6 lg:px-8">
@@ -463,6 +509,10 @@ function markLearned(item: VocabularyCourseItem) {
         onClose={() => setSelectedItem(null)}
         onLearned={() => selectedItem && markLearned(selectedItem)}
         onFavorite={() => selectedItem && saveFavorite(selectedItem)}
+        currentIndex={selectedIndex}
+        total={filteredItems.length}
+        onPrevious={() => selectByIndex(selectedIndex - 1)}
+        onNext={() => selectByIndex(selectedIndex + 1)}
       />
     </main>
   );

@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { Bookmark, Check, CheckCircle2, ImageIcon, X } from "lucide-react";
+import { ModalNavigation } from "@/components/common/ModalNavigation";
 import { Button } from "@/components/ui/button";
 import { alphabetSignData, type AlphabetItemType, type AlphabetSignItem } from "@/data/alphabetSignData";
 import { learningStorageKeys, saveLearningItem } from "@/lib/localLearning";
@@ -120,19 +121,41 @@ function ImageBox({ item }: { item: AlphabetSignItem }) {
 
 function DetailMediaBox({ item }: { item: BoardAlphabetItem }) {
   const [failed, setFailed] = useState(false);
+  const [autoplayBlocked, setAutoplayBlocked] = useState(false);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+
+  useEffect(() => {
+    setAutoplayBlocked(false);
+    if (!item.video_url || !videoRef.current) return;
+
+    const video = videoRef.current;
+    video.currentTime = 0;
+    video.load();
+    const playPromise = video.play();
+    if (playPromise) {
+      playPromise.catch(() => setAutoplayBlocked(true));
+    }
+  }, [item.letter_key, item.video_url]);
 
   if (item.video_url) {
     return (
-      <div className="flex aspect-[4/3] min-h-32 w-full items-center justify-center overflow-hidden rounded-xl bg-slate-950">
+      <div className="grid gap-2">
+        <div className="flex aspect-[4/3] min-h-32 w-full items-center justify-center overflow-hidden rounded-xl bg-slate-950">
         <video
+          ref={videoRef}
           src={item.video_url}
           poster={item.thumbnail_url ?? undefined}
           controls
+          autoPlay
+          muted
+          playsInline
           preload="metadata"
           className="max-h-[260px] w-full rounded-xl object-contain sm:max-h-[320px] lg:max-h-[360px]"
         >
           Trình duyệt của bạn không hỗ trợ video.
         </video>
+        </div>
+        {autoplayBlocked ? <p className="text-center text-xs font-bold text-slate-500">Nhấn để phát video</p> : null}
       </div>
     );
   }
@@ -269,6 +292,10 @@ function DetailModal({
   onOpenChange,
   onLearned,
   onFavorite,
+  currentIndex,
+  total,
+  onPrevious,
+  onNext,
 }: {
   item: BoardAlphabetItem | null;
   learned: boolean;
@@ -276,14 +303,21 @@ function DetailModal({
   onOpenChange: (open: boolean) => void;
   onLearned: () => void;
   onFavorite: () => void;
+  currentIndex: number;
+  total: number;
+  onPrevious: () => void;
+  onNext: () => void;
 }) {
   return (
     <Dialog.Root open={Boolean(item)} onOpenChange={onOpenChange}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-50 bg-slate-950/45 backdrop-blur-sm" />
-        <Dialog.Content className="scrollbar-hide fixed left-1/2 top-1/2 z-50 max-h-[88vh] w-[calc(100vw-24px)] max-w-[900px] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-[1.5rem] bg-white p-4 shadow-2xl focus:outline-none focus:ring-4 focus:ring-blue-100 sm:p-5 lg:max-h-[80vh]">
+        <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[calc(100vw-24px)] max-w-[900px] -translate-x-1/2 -translate-y-1/2 overflow-visible focus:outline-none">
           {item ? (
-            <div className="grid gap-3">
+            <div className="relative overflow-visible">
+              <ModalNavigation variant="desktop" open={Boolean(item)} currentIndex={currentIndex} total={total} onPrevious={onPrevious} onNext={onNext} />
+              <div className="scrollbar-hide max-h-[88vh] overflow-y-auto rounded-[1.5rem] bg-white p-4 shadow-2xl focus:outline-none focus:ring-4 focus:ring-blue-100 sm:p-5 lg:max-h-[80vh]">
+            <div className="relative grid gap-3">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <p className="text-4xl font-black leading-none text-blue-700 sm:text-5xl">{item.display_label}</p>
@@ -295,6 +329,8 @@ function DetailModal({
                   </button>
                 </Dialog.Close>
               </div>
+
+              <ModalNavigation variant="mobile" enableKeyboard={false} open={Boolean(item)} currentIndex={currentIndex} total={total} onPrevious={onPrevious} onNext={onNext} />
 
               <div className="grid gap-4 lg:grid-cols-[0.88fr_1.12fr] lg:items-start">
                 <DetailMediaBox item={item} />
@@ -350,6 +386,8 @@ function DetailModal({
                     Đóng
                   </Button>
                 </Dialog.Close>
+              </div>
+            </div>
               </div>
             </div>
           ) : null}
@@ -451,6 +489,12 @@ export default function AlphabetCoursePage() {
   const learnedActiveCount = activeItems.filter((item) => hasAlphabetProgress(learnedIds, item)).length;
   const selectedIsLearned = selectedItem ? hasAlphabetProgress(learnedIds, selectedItem) : false;
   const selectedIsFavorite = selectedItem ? hasAlphabetProgress(favoriteIds, selectedItem) : false;
+  const selectedIndex = selectedItem ? activeItems.findIndex((item) => item.letter_key === selectedItem.letter_key) : -1;
+
+  function selectByIndex(index: number) {
+    const nextItem = activeItems[index];
+    if (nextItem) setSelectedItem(nextItem);
+  }
 
   return (
     <main className="flex-1 bg-gradient-to-b from-blue-50 via-white to-white px-4 pb-8 pt-3 sm:px-6 sm:pt-4 lg:px-8">
@@ -513,6 +557,10 @@ export default function AlphabetCoursePage() {
         onOpenChange={(open) => !open && setSelectedItem(null)}
         onLearned={markLearned}
         onFavorite={saveFavorite}
+        currentIndex={selectedIndex}
+        total={activeItems.length}
+        onPrevious={() => selectByIndex(selectedIndex - 1)}
+        onNext={() => selectByIndex(selectedIndex + 1)}
       />
     </main>
   );
