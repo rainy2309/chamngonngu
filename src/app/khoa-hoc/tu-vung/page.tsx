@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import * as Dialog from "@radix-ui/react-dialog";
 import { Bookmark, CheckCircle2, ImageIcon, Loader2, Search, Sparkles, X } from "lucide-react";
 import { ModalNavigation } from "@/components/common/ModalNavigation";
 import { Button } from "@/components/ui/button";
+import { SafeVideo } from "@/components/ui/safe-video";
 import { vocabularyCourseData } from "@/data/vocabularyCourseData";
 import { vocabularyCourseTopics } from "@/data/vocabularyCourseTopics";
 import { createClient, hasSupabaseEnv } from "@/lib/supabase/client";
@@ -131,29 +132,18 @@ function slugifyTopic(value: string) {
 
 function MediaPreview({ item }: { item: VocabularyCourseItem }) {
   const [failed, setFailed] = useState(false);
-  const [autoplayBlocked, setAutoplayBlocked] = useState(false);
-  const videoRef = useRef<HTMLVideoElement | null>(null);
-
-  useEffect(() => {
-    setAutoplayBlocked(false);
-    if (!item.video_url || !videoRef.current) return;
-
-    const video = videoRef.current;
-    video.currentTime = 0;
-    video.load();
-    const playPromise = video.play();
-    if (playPromise) {
-      playPromise.catch(() => setAutoplayBlocked(true));
-    }
-  }, [item.id, item.video_url]);
 
   if (item.video_url) {
     return (
-      <div className="grid gap-2">
-        <div className="flex h-[170px] w-full items-center justify-center overflow-hidden rounded-2xl bg-slate-950 sm:h-[200px] lg:h-[220px]">
-          <video ref={videoRef} src={item.video_url} poster={item.thumbnail_url ?? undefined} controls autoPlay muted playsInline preload="metadata" className="h-full w-full object-contain" />
-        </div>
-        {autoplayBlocked ? <p className="text-center text-xs font-bold text-slate-500 dark:text-slate-300">Nhấn để phát video</p> : null}
+      <div className="flex h-[170px] w-full items-center justify-center overflow-hidden rounded-2xl bg-slate-950 sm:h-[200px] lg:h-[220px]">
+        <SafeVideo
+          src={item.video_url}
+          poster={item.thumbnail_url ?? undefined}
+          controls
+          preload="metadata"
+          playsInline
+          className="h-full w-full object-contain"
+        />
       </div>
     );
   }

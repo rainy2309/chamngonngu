@@ -29,6 +29,7 @@ type AlphabetItem = {
   board_image_alt?: string | null;
   status: string;
   display_order: number;
+  updated_at?: string | null;
 };
 
 function getItemLabel(item: AlphabetItem) {
@@ -184,7 +185,7 @@ export default function AdminAlphabetPage() {
     const { data, error } = await supabase
       .from("alphabet_media")
       .select(
-        "id, letter_key, letter, display_label, type, title, explanation, video_url, board_image_url, board_image_storage_path, board_image_alt, status, display_order",
+        "id, letter_key, letter, display_label, type, title, explanation, video_url, board_image_url, board_image_storage_path, board_image_alt, status, display_order, updated_at",
       )
       .neq("status", "archived")
       .order("display_order", { ascending: true })
@@ -223,6 +224,7 @@ export default function AdminAlphabetPage() {
                 board_image_url: result.boardImageUrl,
                 board_image_storage_path: result.storagePath,
                 board_image_alt: result.alt,
+                updated_at: new Date().toISOString(),
               }
             : item,
         ),
@@ -362,7 +364,7 @@ export default function AdminAlphabetPage() {
                       {item.board_image_url ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
-                          src={item.board_image_url}
+                          src={item.board_image_url ? `${item.board_image_url}?t=${item.updated_at ? new Date(item.updated_at).getTime() : Date.now()}` : ""}
                           alt={item.board_image_alt || getDefaultAlt(item)}
                           className="h-14 w-14 rounded-xl border border-blue-100 bg-blue-50 object-contain p-1"
                         />

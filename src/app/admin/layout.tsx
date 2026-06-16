@@ -52,6 +52,7 @@ export default async function AdminLayout({
           <AdminNavLink href="/admin/lessons" label="Bài học" />
           <AdminNavLink href="/admin/content" label="Nội dung tĩnh" />
           <AdminNavLink href="/admin/submissions" label="Duyệt đóng góp" />
+          <AdminNavLink href="/admin/suggestions" label="Duyệt từ mới" />
           <AdminNavLink href="/admin/seed" label="Seed dữ liệu" />
         </nav>
       </aside>
@@ -63,7 +64,8 @@ export default async function AdminLayout({
         <AdminNavLink href="/admin/alphabet" label="Chữ cái" mobile />
         <AdminNavLink href="/admin/lessons" label="Bài học" mobile />
         <AdminNavLink href="/admin/content" label="Content" mobile />
-        <AdminNavLink href="/admin/submissions" label="Duyệt" mobile />
+        <AdminNavLink href="/admin/submissions" label="Đóng góp" mobile />
+        <AdminNavLink href="/admin/suggestions" label="Từ mới" mobile />
       </div>
 
       {/* Main content */}

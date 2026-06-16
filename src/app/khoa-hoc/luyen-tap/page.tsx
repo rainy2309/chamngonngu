@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Award, Brain, ImageIcon, Loader2, RotateCcw, Sparkles, Tags } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { SafeVideo } from "@/components/ui/safe-video";
 import { Card, CardContent } from "@/components/ui/card";
 import { alphabetSignData } from "@/data/alphabetSignData";
 import { vocabularyCourseData } from "@/data/vocabularyCourseData";
@@ -13,6 +14,7 @@ import { getProgressDisplayInfo } from "@/lib/progressDisplay";
 import { createClient, hasSupabaseEnv } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import { normalizeVietnameseText } from "@/lib/vietnameseText";
+import { normalizeLetterKey } from "@/lib/videoUtils";
 
 type Mode = "quick" | "topic";
 type MediaKind = "video" | "gif" | "image";
@@ -124,7 +126,7 @@ function MediaQuestion({ item }: { item: PracticeItem }) {
   if (item.mediaUrl && item.mediaKind === "video") {
     return (
       <div className="flex h-[220px] w-full items-center justify-center overflow-hidden rounded-[1.5rem] bg-slate-950 sm:h-[300px]">
-        <video src={item.mediaUrl} controls preload="metadata" className="h-full w-full object-contain" />
+        <SafeVideo src={item.mediaUrl} controls preload="metadata" playsInline className="h-full w-full object-contain" />
       </div>
     );
   }
@@ -186,7 +188,7 @@ export default function PracticePage() {
             .eq("status", "published"),
           supabase
             .from("alphabet_media")
-            .select("id, letter_key, label, display_label, type, title, description, explanation, video_url, gif_url, thumbnail_url, board_image_url, status")
+            .select("id, letter_key, label, display_label, type, title, description, explanation, video_url, gif_url, thumbnail_url, board_image_url, status, updated_at")
             .eq("status", "published"),
         ]);
 
@@ -203,14 +205,18 @@ export default function PracticePage() {
         }));
 
         const alphabetItems: PracticeItem[] = (alphabetRows ?? []).map((row: any) => {
+          const normalizedKey = normalizeLetterKey(String(row.letter_key ?? ""));
           const label = String(row.display_label ?? row.label ?? row.letter_key ?? "");
+          const boardImageUrl = row.board_image_url
+            ? `${row.board_image_url}?t=${row.updated_at ? new Date(row.updated_at).getTime() : Date.now()}`
+            : null;
           return {
-            id: String(row.letter_key ?? row.id),
-            keys: [row.id, row.letter_key, `alphabet-${row.letter_key}`, row.label, row.display_label].filter(Boolean).map(String),
+            id: normalizedKey,
+            keys: [row.id, normalizedKey, `alphabet-${normalizedKey}`, row.label, row.display_label].filter(Boolean).map(String),
             word: label,
             category: row.type === "tone_mark" ? "Dấu thanh" : "Bảng chữ cái",
             description: String(row.description ?? row.explanation ?? row.title ?? ""),
-            ...getMedia(row.video_url, row.gif_url, row.thumbnail_url, row.board_image_url),
+            ...getMedia(row.video_url, row.gif_url, row.thumbnail_url, boardImageUrl),
           };
         });
 

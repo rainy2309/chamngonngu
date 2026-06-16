@@ -1,14 +1,16 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { Bookmark, Check, CheckCircle2, ImageIcon, X } from "lucide-react";
 import { ModalNavigation } from "@/components/common/ModalNavigation";
 import { Button } from "@/components/ui/button";
+import { SafeVideo } from "@/components/ui/safe-video";
 import { alphabetSignData, type AlphabetItemType, type AlphabetSignItem } from "@/data/alphabetSignData";
 import { learningStorageKeys, saveLearningItem } from "@/lib/localLearning";
 import { createClient, hasSupabaseEnv } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
+import { normalizeLetterKey } from "@/lib/videoUtils";
 
 const learnedAlphabetKey = "cham_learned_alphabet";
 const favoriteSignsKey = "cham_favorite_signs";
@@ -121,41 +123,18 @@ function ImageBox({ item }: { item: AlphabetSignItem }) {
 
 function DetailMediaBox({ item }: { item: BoardAlphabetItem }) {
   const [failed, setFailed] = useState(false);
-  const [autoplayBlocked, setAutoplayBlocked] = useState(false);
-  const videoRef = useRef<HTMLVideoElement | null>(null);
-
-  useEffect(() => {
-    setAutoplayBlocked(false);
-    if (!item.video_url || !videoRef.current) return;
-
-    const video = videoRef.current;
-    video.currentTime = 0;
-    video.load();
-    const playPromise = video.play();
-    if (playPromise) {
-      playPromise.catch(() => setAutoplayBlocked(true));
-    }
-  }, [item.letter_key, item.video_url]);
 
   if (item.video_url) {
     return (
-      <div className="grid gap-2">
-        <div className="flex aspect-[4/3] min-h-32 w-full items-center justify-center overflow-hidden rounded-xl bg-slate-950">
-        <video
-          ref={videoRef}
+      <div className="flex aspect-[4/3] min-h-32 w-full items-center justify-center overflow-hidden rounded-xl bg-slate-950">
+        <SafeVideo
           src={item.video_url}
           poster={item.thumbnail_url ?? undefined}
           controls
-          autoPlay
-          muted
-          playsInline
           preload="metadata"
+          playsInline
           className="max-h-[260px] w-full rounded-xl object-contain sm:max-h-[320px] lg:max-h-[360px]"
-        >
-          Trình duyệt của bạn không hỗ trợ video.
-        </video>
-        </div>
-        {autoplayBlocked ? <p className="text-center text-xs font-bold text-slate-500">Nhấn để phát video</p> : null}
+        />
       </div>
     );
   }
@@ -416,7 +395,7 @@ export default function AlphabetCoursePage() {
         const { data, error } = await supabase
           .from("alphabet_media")
           .select(
-            "id, letter_key, letter, display_label, type, title, description, explanation, instructions, tips, video_url, gif_url, thumbnail_url, board_image_url, board_image_alt, status, display_order",
+            "id, letter_key, letter, display_label, type, title, description, explanation, instructions, tips, video_url, gif_url, thumbnail_url, board_image_url, board_image_alt, status, display_order, updated_at",
           )
           .eq("status", "published");
 
@@ -427,7 +406,7 @@ export default function AlphabetCoursePage() {
 
         const imageByKey = new Map(
           (data ?? []).map((row) => [
-            String(row.letter_key),
+            normalizeLetterKey(String(row.letter_key)),
             {
               media_id: row.id as string | null,
               letter: typeof row.letter === "string" ? row.letter : undefined,
@@ -445,7 +424,9 @@ export default function AlphabetCoursePage() {
               video_url: row.video_url as string | null,
               gif_url: row.gif_url as string | null,
               thumbnail_url: row.thumbnail_url as string | null,
-              board_image_url: row.board_image_url as string | null,
+              board_image_url: row.board_image_url
+                ? `${row.board_image_url}?t=${row.updated_at ? new Date(row.updated_at).getTime() : Date.now()}`
+                : null,
               board_image_alt: row.board_image_alt as string | null,
             },
           ]),
