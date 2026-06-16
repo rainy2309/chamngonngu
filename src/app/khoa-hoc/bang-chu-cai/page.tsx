@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { Bookmark, Check, CheckCircle2, ImageIcon, X } from "lucide-react";
+import { ModalNavigation } from "@/components/common/ModalNavigation";
 import { Button } from "@/components/ui/button";
 import { SafeVideo } from "@/components/ui/safe-video";
 import { alphabetSignData, type AlphabetItemType, type AlphabetSignItem } from "@/data/alphabetSignData";
@@ -270,6 +271,10 @@ function DetailModal({
   onOpenChange,
   onLearned,
   onFavorite,
+  currentIndex,
+  total,
+  onPrevious,
+  onNext,
 }: {
   item: BoardAlphabetItem | null;
   learned: boolean;
@@ -277,14 +282,21 @@ function DetailModal({
   onOpenChange: (open: boolean) => void;
   onLearned: () => void;
   onFavorite: () => void;
+  currentIndex: number;
+  total: number;
+  onPrevious: () => void;
+  onNext: () => void;
 }) {
   return (
     <Dialog.Root open={Boolean(item)} onOpenChange={onOpenChange}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-50 bg-slate-950/45 backdrop-blur-sm" />
-        <Dialog.Content className="scrollbar-hide fixed left-1/2 top-1/2 z-50 max-h-[88vh] w-[calc(100vw-24px)] max-w-[900px] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-[1.5rem] bg-white p-4 shadow-2xl focus:outline-none focus:ring-4 focus:ring-blue-100 sm:p-5 lg:max-h-[80vh]">
+        <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[calc(100vw-24px)] max-w-[900px] -translate-x-1/2 -translate-y-1/2 overflow-visible focus:outline-none">
           {item ? (
-            <div className="grid gap-3">
+            <div className="relative overflow-visible">
+              <ModalNavigation variant="desktop" open={Boolean(item)} currentIndex={currentIndex} total={total} onPrevious={onPrevious} onNext={onNext} />
+              <div className="scrollbar-hide max-h-[88vh] overflow-y-auto rounded-[1.5rem] bg-white p-4 shadow-2xl focus:outline-none focus:ring-4 focus:ring-blue-100 sm:p-5 lg:max-h-[80vh]">
+            <div className="relative grid gap-3">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <p className="text-4xl font-black leading-none text-blue-700 sm:text-5xl">{item.display_label}</p>
@@ -296,6 +308,8 @@ function DetailModal({
                   </button>
                 </Dialog.Close>
               </div>
+
+              <ModalNavigation variant="mobile" enableKeyboard={false} open={Boolean(item)} currentIndex={currentIndex} total={total} onPrevious={onPrevious} onNext={onNext} />
 
               <div className="grid gap-4 lg:grid-cols-[0.88fr_1.12fr] lg:items-start">
                 <DetailMediaBox item={item} />
@@ -351,6 +365,8 @@ function DetailModal({
                     Đóng
                   </Button>
                 </Dialog.Close>
+              </div>
+            </div>
               </div>
             </div>
           ) : null}
@@ -454,6 +470,12 @@ export default function AlphabetCoursePage() {
   const learnedActiveCount = activeItems.filter((item) => hasAlphabetProgress(learnedIds, item)).length;
   const selectedIsLearned = selectedItem ? hasAlphabetProgress(learnedIds, selectedItem) : false;
   const selectedIsFavorite = selectedItem ? hasAlphabetProgress(favoriteIds, selectedItem) : false;
+  const selectedIndex = selectedItem ? activeItems.findIndex((item) => item.letter_key === selectedItem.letter_key) : -1;
+
+  function selectByIndex(index: number) {
+    const nextItem = activeItems[index];
+    if (nextItem) setSelectedItem(nextItem);
+  }
 
   return (
     <main className="flex-1 bg-gradient-to-b from-blue-50 via-white to-white px-4 pb-8 pt-3 sm:px-6 sm:pt-4 lg:px-8">
@@ -516,6 +538,10 @@ export default function AlphabetCoursePage() {
         onOpenChange={(open) => !open && setSelectedItem(null)}
         onLearned={markLearned}
         onFavorite={saveFavorite}
+        currentIndex={selectedIndex}
+        total={activeItems.length}
+        onPrevious={() => selectByIndex(selectedIndex - 1)}
+        onNext={() => selectByIndex(selectedIndex + 1)}
       />
     </main>
   );
