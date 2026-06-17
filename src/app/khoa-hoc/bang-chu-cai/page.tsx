@@ -22,6 +22,59 @@ type BoardAlphabetItem = AlphabetSignItem & {
   thumbnail_url?: string | null;
 };
 
+const alphabetBoardImageBasePath = "/images/alphabet-board";
+
+const localBoardImageFileByKey: Record<string, string> = {
+  a: "a.png",
+  b: "b.png",
+  c: "c.png",
+  d: "d.png",
+  dd: "dd.png",
+  e: "e.png",
+  g: "g.png",
+  h: "h.png",
+  i: "i.png",
+  k: "k.png",
+  l: "l.png",
+  m: "m.png",
+  n: "n.png",
+  o: "o.png",
+  p: "p.png",
+  q: "q.png",
+  r: "r.png",
+  s: "s.png",
+  t: "t.png",
+  u: "u.png",
+  v: "v.png",
+  x: "x.png",
+  y: "y.png",
+  aeo: "aeo.png",
+  aw: "aw.png",
+  uo: "uo.png",
+  aa: "aeo.png",
+  ee: "aeo.png",
+  oo: "aeo.png",
+  ow: "uo.png",
+  uw: "uo.png",
+  circumflex_group: "aeo.png",
+  breve_group: "aw.png",
+  horn_group: "uo.png",
+  sac: "sac.png",
+  huyen: "huyen.png",
+  hoi: "hoi.png",
+  nga: "nga.png",
+  nang: "nang.png",
+};
+
+function getLocalBoardImageUrl(letterKey: string) {
+  const fileName = localBoardImageFileByKey[normalizeLetterKey(letterKey)];
+  return fileName ? `${alphabetBoardImageBasePath}/${fileName}` : null;
+}
+
+function getBoardImageSources(item: BoardAlphabetItem) {
+  return Array.from(new Set([getLocalBoardImageUrl(item.letter_key), item.board_image_url || null, item.image || null].filter(Boolean))) as string[];
+}
+
 const compactInstructions = [
   "Quan sát hình minh họa.",
   "Giữ tay trong khung nhìn rõ.",
@@ -170,9 +223,10 @@ function DetailMediaBox({ item }: { item: BoardAlphabetItem }) {
 }
 
 function BoardPreviewBox({ item }: { item: BoardAlphabetItem }) {
-  const [failed, setFailed] = useState(false);
-  const canShowBoardImage = Boolean(item.board_image_url && !failed);
+  const [sourceIndex, setSourceIndex] = useState(0);
   const isVowelModifier = item.type === "vowel_modifier";
+  const imageSources = getBoardImageSources(item);
+  const currentImageSource = imageSources[sourceIndex];
 
   return (
     <div
@@ -181,16 +235,16 @@ function BoardPreviewBox({ item }: { item: BoardAlphabetItem }) {
         isVowelModifier ? "h-24 min-[390px]:h-28 sm:h-32 lg:h-32" : "h-20 min-[390px]:h-24 sm:h-28 lg:h-32",
       )}
     >
-      {canShowBoardImage ? (
+      {currentImageSource ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
-          src={item.board_image_url ?? ""}
+          src={currentImageSource}
           alt={item.board_image_alt || `Minh họa ${item.display_label}`}
           className={cn(
             "w-full object-contain px-1 py-1",
             isVowelModifier ? "max-h-[86px] min-[390px]:max-h-[100px] sm:max-h-[112px] lg:max-h-[118px]" : "max-h-[72px] min-[390px]:max-h-[84px] sm:max-h-[100px] lg:max-h-[112px]",
           )}
-          onError={() => setFailed(true)}
+          onError={() => setSourceIndex((index) => index + 1)}
         />
       ) : (
         <div className="grid h-full w-full place-items-center rounded-xl bg-slate-50/80 text-center dark:bg-slate-800">
