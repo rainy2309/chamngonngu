@@ -2,6 +2,7 @@
 
 import { createClient, hasSupabaseEnv } from "@/lib/supabase/client";
 import { learningStorageKeys, readLearningItems, type StoredLearningItem } from "@/lib/localLearning";
+import { canonicalLearningKey, dedupeLearningItemsByCanonical } from "@/lib/progressDisplay";
 
 export type LearningKind = "favorites" | "learned" | "learnedAlphabet" | "viewedLessons";
 
@@ -75,13 +76,22 @@ function dedupeItems(items: StoredLearningItem[]) {
   return Array.from(byId.values()).sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
 }
 
+function shouldUseCanonicalDedupe(kind: LearningKind) {
+  return kind === "learned" || kind === "learnedAlphabet";
+}
+
+function dedupeItemsForKind(kind: LearningKind, items: StoredLearningItem[]) {
+  return shouldUseCanonicalDedupe(kind) ? dedupeLearningItemsByCanonical(dedupeItems(items)) : dedupeItems(items);
+}
+
 function readItemsFromKey(key: string) {
   return dedupeItems(readLearningItems(key));
 }
 
-function writeItemsToKey(key: string, items: StoredLearningItem[]) {
+function writeItemsToKey(key: string, items: StoredLearningItem[], kind?: LearningKind) {
   if (!isBrowser()) return;
-  window.localStorage.setItem(key, JSON.stringify(dedupeItems(items)));
+  const nextItems = kind ? dedupeItemsForKind(kind, items) : dedupeItems(items);
+  window.localStorage.setItem(key, JSON.stringify(nextItems));
 }
 
 function removeKey(key: string) {
@@ -109,7 +119,7 @@ export function migrateLegacyLearningKeys() {
     if (!legacyItems.length) continue;
 
     const guestItems = readItemsFromKey(config.guestKey);
-    writeItemsToKey(config.guestKey, [...legacyItems, ...guestItems]);
+    writeItemsToKey(config.guestKey, [...legacyItems, ...guestItems], config === learningKindConfig.learned ? "learned" : config === learningKindConfig.learnedAlphabet ? "learnedAlphabet" : undefined);
     removeKey(config.legacyKey);
   }
 }
@@ -247,10 +257,10 @@ export async function mergeGuestLearningIntoUser(userId: string) {
     const userKey = getUserStorageKey(kind, userId);
     const cachedItems = readItemsFromKey(userKey);
     const remoteItems = (await fetchRemoteItems(kind, userId)) ?? cachedItems;
-    const mergedItems = dedupeItems([...guestItems, ...remoteItems, ...cachedItems]);
+    const mergedItems = dedupeItemsForKind(kind, [...guestItems, ...remoteItems, ...cachedItems]);
 
     await upsertRemoteItems(kind, userId, guestItems);
-    writeItemsToKey(userKey, mergedItems);
+    writeItemsToKey(userKey, mergedItems, kind);
     removeKey(getGuestStorageKey(kind));
   }
 }
@@ -260,7 +270,8 @@ export async function readLearningState(kind: LearningKind): Promise<LearningSta
   const userId = await getCurrentUserId();
 
   if (!userId) {
-    const items = readItemsFromKey(getGuestStorageKey(kind));
+    const items = dedupeItemsForKind(kind, readItemsFromKey(getGuestStorageKey(kind)));
+    writeItemsToKey(getGuestStorageKey(kind), items, kind);
     return { items, ids: getLearningIds(items), userId: null, isAuthenticated: false };
   }
 
@@ -269,8 +280,8 @@ export async function readLearningState(kind: LearningKind): Promise<LearningSta
   const userKey = getUserStorageKey(kind, userId);
   const cachedItems = readItemsFromKey(userKey);
   const remoteItems = await fetchRemoteItems(kind, userId);
-  const items = remoteItems ? dedupeItems(remoteItems) : cachedItems;
-  writeItemsToKey(userKey, items);
+  const items = dedupeItemsForKind(kind, remoteItems ? remoteItems : cachedItems);
+  writeItemsToKey(userKey, items, kind);
 
   return { items, ids: getLearningIds(items), userId, isAuthenticated: true };
 }
@@ -284,19 +295,25 @@ export async function toggleLearningItem(
   const normalizedItem = normalizeStoredItem(item);
   const key = userId ? getUserStorageKey(kind, userId) : getGuestStorageKey(kind);
   const currentItems = readItemsFromKey(key);
-  const exists = currentItems.some((stored) => stored.id === normalizedItem.id);
-  const nextItems = exists ? currentItems.filter((stored) => stored.id !== normalizedItem.id) : [normalizedItem, ...currentItems];
+  const normalizedCanonicalKey = canonicalLearningKey(normalizedItem.id, normalizedItem.label);
+  const shouldDedupeAliases = shouldUseCanonicalDedupe(kind);
+  const isMatchingAlias = (stored: StoredLearningItem) =>
+    stored.id === normalizedItem.id || (shouldDedupeAliases && canonicalLearningKey(stored.id, stored.label) === normalizedCanonicalKey);
+  const matchingAliases = currentItems.filter(isMatchingAlias);
+  const exists = matchingAliases.length > 0;
+  const nextItems = exists ? currentItems.filter((stored) => !isMatchingAlias(stored)) : [normalizedItem, ...currentItems.filter((stored) => !isMatchingAlias(stored))];
 
   if (userId) {
     if (exists) {
-      await deleteRemoteItem(kind, userId, normalizedItem.id);
+      await Promise.all(Array.from(new Set([...matchingAliases.map((stored) => stored.id), normalizedItem.id])).map((id) => deleteRemoteItem(kind, userId, id)));
     } else {
       await upsertRemoteItems(kind, userId, [normalizedItem]);
     }
   }
 
-  writeItemsToKey(key, nextItems);
-  return { items: nextItems, ids: getLearningIds(nextItems), userId, isAuthenticated: Boolean(userId) };
+  const dedupedItems = dedupeItemsForKind(kind, nextItems);
+  writeItemsToKey(key, dedupedItems, kind);
+  return { items: dedupedItems, ids: getLearningIds(dedupedItems), userId, isAuthenticated: Boolean(userId) };
 }
 
 export async function saveLearningItemForCurrentUser(
@@ -307,14 +324,17 @@ export async function saveLearningItemForCurrentUser(
   const userId = await getCurrentUserId();
   const key = userId ? getUserStorageKey(kind, userId) : getGuestStorageKey(kind);
   const normalizedItem = normalizeStoredItem(item);
-  const currentItems = readItemsFromKey(key).filter((stored) => stored.id !== normalizedItem.id);
-  const nextItems = [normalizedItem, ...currentItems];
+  const normalizedCanonicalKey = canonicalLearningKey(normalizedItem.id, normalizedItem.label);
+  const currentItems = readItemsFromKey(key).filter(
+    (stored) => stored.id !== normalizedItem.id && (!shouldUseCanonicalDedupe(kind) || canonicalLearningKey(stored.id, stored.label) !== normalizedCanonicalKey),
+  );
+  const nextItems = dedupeItemsForKind(kind, [normalizedItem, ...currentItems]);
 
   if (userId) {
     await upsertRemoteItems(kind, userId, [normalizedItem]);
   }
 
-  writeItemsToKey(key, nextItems);
+  writeItemsToKey(key, nextItems, kind);
   return { items: nextItems, ids: getLearningIds(nextItems), userId, isAuthenticated: Boolean(userId) };
 }
 

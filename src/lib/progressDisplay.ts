@@ -1,6 +1,7 @@
 import { alphabetSignData } from "@/data/alphabetSignData";
 import { signDictionaryData } from "@/data/signDictionaryData";
 import { vocabularyCourseData } from "@/data/vocabularyCourseData";
+import type { StoredLearningItem } from "@/lib/localLearning";
 import { normalizeVietnameseText } from "@/lib/vietnameseText";
 
 export type ProgressDisplayInfo = {
@@ -44,6 +45,19 @@ function slugify(value: string) {
   return normalizeVietnameseText(value)
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
+}
+
+function newestLearningTime(item: StoredLearningItem) {
+  return Math.max(new Date(item.updatedAt).getTime() || 0, new Date(item.savedAt ?? "").getTime() || 0);
+}
+
+function getQueryParamFromHref(href: string, param: string) {
+  try {
+    const url = new URL(href, "https://cham.local");
+    return url.searchParams.get(param) ?? "";
+  } catch {
+    return "";
+  }
 }
 
 function stripKnownPrefix(value: string) {
@@ -196,4 +210,40 @@ export function getProgressDisplayInfo(rawId: string, rawLabel?: string): Progre
     href: "/tu-dien",
     missingDetails: true,
   };
+}
+
+export function canonicalLearningKey(rawId: string, rawLabel?: string) {
+  const info = getProgressDisplayInfo(rawId, rawLabel);
+  if (info.missingDetails) return `unknown:${rawId}`;
+
+  const hrefKey = getQueryParamFromHref(info.href, "letter");
+  if (info.typeLabel === "Dấu thanh") {
+    return `tone:${hrefKey || slugify(info.label.replace(/^dấu\s+/i, ""))}`;
+  }
+
+  if (info.typeLabel === "Bảng chữ cái") {
+    return `alphabet:${hrefKey || slugify(info.label)}`;
+  }
+
+  return `word:${slugify(info.label)}`;
+}
+
+export function dedupeLearningItemsByCanonical(items: StoredLearningItem[]) {
+  const byCanonicalKey = new Map<string, StoredLearningItem>();
+
+  for (const item of items) {
+    if (!item.id) continue;
+    const canonicalKey = canonicalLearningKey(item.id, item.label);
+    const existing = byCanonicalKey.get(canonicalKey);
+    if (!existing || newestLearningTime(item) > newestLearningTime(existing)) {
+      byCanonicalKey.set(canonicalKey, item);
+    }
+  }
+
+  return Array.from(byCanonicalKey.values()).sort((a, b) => newestLearningTime(b) - newestLearningTime(a));
+}
+
+export function hasCanonicalLearningProgress(ids: string[], item: { id: string; label?: string }) {
+  const itemKey = canonicalLearningKey(item.id, item.label);
+  return ids.some((id) => id === item.id || canonicalLearningKey(id) === itemKey);
 }
