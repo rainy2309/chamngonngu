@@ -13,7 +13,7 @@ export function Footer() {
           </div>
         </div>
         <p className="max-w-3xl text-sm leading-7">
-          CHẠM ưu tiên học tập bằng hình ảnh, chữ viết rõ ràng và nội dung dễ tiếp cận. GIF/video ký hiệu trong bản demo là placeholder và cần được xác minh bởi nguồn chuyên môn.
+          CHẠM là dự án học tập giúp người mới bắt đầu làm quen với ngôn ngữ ký hiệu qua bảng chữ cái, từ điển, từ vựng và các bài luyện tập cơ bản. Trang web hướng đến việc tạo một không gian học dễ tiếp cận, thân thiện và góp phần kết nối cộng đồng người nghe với người điếc.
         </p>
         <div className="flex flex-wrap gap-4 text-sm font-bold">
           <Link href="/tu-dien" className="whitespace-nowrap text-blue-700 hover:text-blue-900">

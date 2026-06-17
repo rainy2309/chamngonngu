@@ -4,6 +4,17 @@ import { createClient, hasSupabaseEnv, missingEnvMessage } from "@/lib/supabase/
 
 export const googleLoginErrorMessage = "Không thể đăng nhập bằng Google. Vui lòng thử lại.";
 
+export function getSiteUrl() {
+  const envSiteUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim();
+  if (envSiteUrl) return envSiteUrl.replace(/\/$/, "");
+
+  if (typeof window !== "undefined" && window.location.origin) {
+    return window.location.origin;
+  }
+
+  return "https://chamngonngu.vercel.app";
+}
+
 export async function signInWithGoogle() {
   if (typeof window === "undefined") {
     return { error: googleLoginErrorMessage };
@@ -18,7 +29,7 @@ export async function signInWithGoogle() {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: `${window.location.origin}/auth/callback?next=/ho-so`,
+        redirectTo: `${getSiteUrl()}/auth/callback?next=/ho-so`,
       },
     });
 

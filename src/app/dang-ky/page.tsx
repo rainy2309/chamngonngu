@@ -8,7 +8,7 @@ import { ChamLogo } from "@/components/common/ChamLogo";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { signInWithGoogle } from "@/lib/auth";
+import { getSiteUrl, signInWithGoogle } from "@/lib/auth";
 import { createClient, missingEnvMessage } from "@/lib/supabase/client";
 
 // Role mặc định là 'user', chỉ admin mới có thể đổi role
@@ -77,7 +77,7 @@ export default function RegisterPage() {
         email,
         password,
         options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback?next=/ho-so`,
+          emailRedirectTo: `${getSiteUrl()}/auth/callback?next=/ho-so`,
           data: { full_name: fullName, role: "user" },
         },
       });

@@ -240,7 +240,9 @@ export default function ProfilePage() {
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [passwordEmailLoading, setPasswordEmailLoading] = useState(false);
+  const [passwordUpdating, setPasswordUpdating] = useState(false);
+  const [accountPassword, setAccountPassword] = useState("");
+  const [confirmAccountPassword, setConfirmAccountPassword] = useState("");
   const [profileTableReady, setProfileTableReady] = useState(true);
   const [learnedSigns, setLearnedSigns] = useState<StoredLearningItem[]>([]);
   const [fullListModal, setFullListModal] = useState<"learned" | null>(null);
@@ -397,27 +399,45 @@ export default function ProfilePage() {
     }
   }
 
-  async function sendPasswordSetupEmail() {
-    if (!email) {
-      setMessage("Chưa có email để gửi hướng dẫn đặt mật khẩu.");
+  async function updateAccountPassword() {
+    setPasswordUpdating(true);
+    setMessage("");
+
+    if (!accountPassword) {
+      setMessage("Vui lòng nhập mật khẩu mới.");
+      setPasswordUpdating(false);
       return;
     }
 
-    setPasswordEmailLoading(true);
-    setMessage("");
+    if (accountPassword.length < 8) {
+      setMessage("Mật khẩu mới cần có ít nhất 8 ký tự.");
+      setPasswordUpdating(false);
+      return;
+    }
+
+    if (accountPassword !== confirmAccountPassword) {
+      setMessage("Mật khẩu xác nhận chưa khớp.");
+      setPasswordUpdating(false);
+      return;
+    }
 
     try {
       const supabase = createClient();
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/dat-lai-mat-khau`,
-      });
+      const { error } = await supabase.auth.updateUser({ password: accountPassword });
 
-      if (error) console.error("Profile password reset request error:", error);
-      setMessage("Nếu email hợp lệ, hướng dẫn đặt lại mật khẩu sẽ được gửi đến hộp thư của bạn.");
+      if (error) {
+        console.error("Profile password update error:", error);
+        setMessage("Không thể cập nhật mật khẩu. Vui lòng thử lại.");
+        return;
+      }
+
+      setAccountPassword("");
+      setConfirmAccountPassword("");
+      setMessage("Mật khẩu đã được cập nhật thành công.");
     } catch {
       setMessage(missingEnvMessage);
     } finally {
-      setPasswordEmailLoading(false);
+      setPasswordUpdating(false);
     }
   }
 
@@ -545,16 +565,42 @@ export default function ProfilePage() {
                   <Input value={roleLabels[role] ?? role} disabled />
                 </label>
                 <div className="rounded-[1.5rem] border border-blue-100 bg-blue-50/60 p-4">
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="grid gap-4">
                     <div>
-                      <p className="font-black text-slate-950">Đăng nhập bằng email</p>
+                      <p className="font-black text-slate-950">Tạo hoặc đổi mật khẩu</p>
                       <p className="mt-1 text-sm font-semibold leading-6 text-slate-600">
-                        Nếu bạn thường dùng Google, bạn vẫn có thể đặt mật khẩu để đăng nhập bằng email.
+                        Bạn đang đăng nhập bằng Google. Bạn có thể tạo thêm mật khẩu để đăng nhập bằng email ở lần sau.
                       </p>
                     </div>
-                    <Button type="button" variant="outline" disabled={passwordEmailLoading || !email} onClick={sendPasswordSetupEmail} className="min-h-11 shrink-0 rounded-full bg-white">
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <label className="grid gap-2">
+                        <span className="font-bold text-slate-800">Mật khẩu mới</span>
+                        <Input
+                          type="password"
+                          value={accountPassword}
+                          onChange={(event) => setAccountPassword(event.target.value)}
+                          autoComplete="new-password"
+                        />
+                      </label>
+                      <label className="grid gap-2">
+                        <span className="font-bold text-slate-800">Nhập lại mật khẩu</span>
+                        <Input
+                          type="password"
+                          value={confirmAccountPassword}
+                          onChange={(event) => setConfirmAccountPassword(event.target.value)}
+                          autoComplete="new-password"
+                        />
+                      </label>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={passwordUpdating || !userId}
+                      onClick={updateAccountPassword}
+                      className="min-h-11 w-full rounded-full bg-white sm:w-fit"
+                    >
                       <KeyRound className="h-4 w-4" aria-hidden="true" />
-                      {passwordEmailLoading ? "Đang gửi..." : "Đặt hoặc đổi mật khẩu"}
+                      {passwordUpdating ? "Đang cập nhật..." : "Cập nhật mật khẩu"}
                     </Button>
                   </div>
                 </div>
