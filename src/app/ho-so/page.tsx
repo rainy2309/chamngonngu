@@ -3,13 +3,14 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import * as Dialog from "@radix-ui/react-dialog";
-import { ArrowRight, Award, CheckCircle2, Heart, KeyRound, Save, Search, Sparkles, X } from "lucide-react";
+import { ArrowRight, Award, CheckCircle2, KeyRound, Save, Search, Sparkles, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { createClient, hasSupabaseEnv, missingEnvMessage } from "@/lib/supabase/client";
 import { getBestQuizScore } from "@/lib/quiz";
-import { learningStorageKeys, readBestQuizScore, readLearningItems, type StoredLearningItem } from "@/lib/localLearning";
+import { readLearningState } from "@/lib/authLearning";
+import type { StoredLearningItem } from "@/lib/localLearning";
 import { addDictionaryProgressItems, getProgressDisplayInfo, isUuidLike } from "@/lib/progressDisplay";
 import { readPracticeStats, type PracticeStats } from "@/lib/practiceStats";
 
@@ -78,6 +79,17 @@ function RecentList({ items, emptyText }: { items: StoredLearningItem[]; emptyTe
 
 function getStoredItemIds(items: StoredLearningItem[]) {
   return Array.from(new Set(items.map((item) => item.id).filter(Boolean)));
+}
+
+function mergeStoredItems(items: StoredLearningItem[]) {
+  const byId = new Map<string, StoredLearningItem>();
+  for (const item of items) {
+    const existing = byId.get(item.id);
+    if (!existing || new Date(item.updatedAt).getTime() > new Date(existing.updatedAt).getTime()) {
+      byId.set(item.id, item);
+    }
+  }
+  return Array.from(byId.values()).sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
 }
 
 type ResolvedLearningItem = {
@@ -230,23 +242,26 @@ export default function ProfilePage() {
   const [saving, setSaving] = useState(false);
   const [passwordEmailLoading, setPasswordEmailLoading] = useState(false);
   const [profileTableReady, setProfileTableReady] = useState(true);
-  const [learnedSigns, setLearnedSigns] = useState<StoredLearningItem[]>([]);
-  const [favoriteSigns, setFavoriteSigns] = useState<StoredLearningItem[]>([]);
-  const [fullListModal, setFullListModal] = useState<"learned" | "favorites" | null>(null);
+  const [learnedSigns, setLearnedSigns] = useState<StoredLearningItem[]>([]);
+  const [fullListModal, setFullListModal] = useState<"learned" | null>(null);
   const [bestScore, setBestScore] = useState(0);
   const [practiceStats, setPracticeStats] = useState<PracticeStats>(() => readPracticeStats());
 
   useEffect(() => {
-    const initialLearned = readLearningItems(learningStorageKeys.learned);
-    const initialFavorites = readLearningItems(learningStorageKeys.favorites);
-
-    setLearnedSigns(initialLearned);
-    setFavoriteSigns(initialFavorites);
-    setBestScore(readBestQuizScore());
-    setPracticeStats(readPracticeStats());
+    let initialLearned: StoredLearningItem[] = [];
 
     async function loadProfile() {
       try {
+        const [learnedState, learnedAlphabetState] = await Promise.all([
+          readLearningState("learned"),
+          readLearningState("learnedAlphabet"),
+        ]);
+        initialLearned = mergeStoredItems([...learnedState.items, ...learnedAlphabetState.items]);
+
+        setLearnedSigns(initialLearned);
+        setBestScore(await getBestQuizScore());
+        setPracticeStats(readPracticeStats());
+
         if (!hasSupabaseEnv()) {
           setMessage(missingEnvMessage);
           setProfileTableReady(false);
@@ -273,12 +288,13 @@ export default function ProfilePage() {
         setRole(metadataRole || "user");
         setAvatarUrl(metadataAvatar);
         setJoinedAt(user.created_at ?? "");
+        setPracticeStats(readPracticeStats(user.id));
 
         const supabaseBestScore = await getBestQuizScore();
         setBestScore((current) => Math.max(current, supabaseBestScore));
 
         try {
-          const savedIds = getStoredItemIds([...initialLearned, ...initialFavorites]);
+          const savedIds = getStoredItemIds(initialLearned);
           const uuidIds = savedIds.filter(isUuidLike);
           const textKeys = savedIds.filter((id) => !isUuidLike(id)).slice(0, 80);
           const matchingRows: any[] = [];
@@ -304,8 +320,7 @@ export default function ProfilePage() {
 
           if (matchingRows.length) {
             addDictionaryProgressItems(matchingRows);
-            setLearnedSigns([...initialLearned]);
-            setFavoriteSigns([...initialFavorites]);
+            setLearnedSigns([...initialLearned]);
           }
         } catch (error) {
           if (process.env.NODE_ENV === "development") {
@@ -355,8 +370,8 @@ export default function ProfilePage() {
   }, []);
 
   const hasJournal = useMemo(
-    () => learnedSigns.length + favoriteSigns.length + bestScore + practiceStats.totalSessions > 0,
-    [bestScore, favoriteSigns.length, learnedSigns.length, practiceStats.totalSessions],
+    () => learnedSigns.length + bestScore + practiceStats.totalSessions > 0,
+    [bestScore, learnedSigns.length, practiceStats.totalSessions],
   );
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -407,7 +422,7 @@ export default function ProfilePage() {
 
   const statCards = [
     { title: "Mục đã học", value: learnedSigns.length, icon: CheckCircle2 },
-    { title: "Mục yêu thích", value: favoriteSigns.length, icon: Heart },
+    { title: "Lượt luyện tập", value: practiceStats.totalSessions, icon: Sparkles },
     { title: "Điểm luyện tập cao nhất", value: practiceStats.bestScore ? `${practiceStats.bestScore}/${practiceStats.bestTotal || 10}` : "0", icon: Award },
   ];
 
@@ -417,7 +432,7 @@ export default function ProfilePage() {
         <section>
           <p className="text-sm font-black uppercase text-blue-600">Khu vực cá nhân</p>
           <h1 className="mt-2 text-3xl font-black text-slate-950 sm:text-4xl">Hồ sơ học tập</h1>
-          <p className="mt-2 max-w-3xl text-sm font-semibold leading-7 text-slate-600 sm:text-base">Theo dõi các mục đã học, yêu thích và kết quả luyện tập của bạn.</p>
+          <p className="mt-2 max-w-3xl text-sm font-semibold leading-7 text-slate-600 sm:text-base">Theo dõi các mục đã học và kết quả luyện tập của bạn.</p>
         </section>
 
         <section className="grid gap-4">
@@ -461,14 +476,6 @@ export default function ProfilePage() {
               </CardHeader>
               <CardContent>
                 <LearningPreviewList items={learnedSigns} emptyText="Bạn chưa đánh dấu mục nào là đã học." onViewAll={() => setFullListModal("learned")} />
-              </CardContent>
-            </Card>
-            <Card className="rounded-[1.75rem] border-blue-100 shadow-lg shadow-blue-100/50">
-              <CardHeader>
-                <CardTitle>Mục yêu thích</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <LearningPreviewList items={favoriteSigns} emptyText="Bạn chưa lưu mục yêu thích nào." onViewAll={() => setFullListModal("favorites")} />
               </CardContent>
             </Card>
             <Card className="rounded-[1.75rem] border-blue-100 shadow-lg shadow-blue-100/50">
@@ -565,12 +572,6 @@ export default function ProfilePage() {
           onOpenChange={(open) => setFullListModal(open ? "learned" : null)}
           title="Tất cả mục đã học"
           items={learnedSigns}
-        />
-        <FullLearningListModal
-          open={fullListModal === "favorites"}
-          onOpenChange={(open) => setFullListModal(open ? "favorites" : null)}
-          title="Tất cả mục yêu thích"
-          items={favoriteSigns}
         />
       </div>
     </main>

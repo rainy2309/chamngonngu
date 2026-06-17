@@ -1,52 +1,31 @@
 "use client";
 
-import { Bookmark, CheckCircle2, Hand, PlayCircle } from "lucide-react";
+import { CheckCircle2, Hand, PlayCircle } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { readLearningState, saveLearningItemForCurrentUser } from "@/lib/authLearning";
 import type { VocabularyItem } from "@/types/vocabulary";
 
-const favoriteKey = "cham_favorite_signs";
-const learnedKey = "cham_learned_signs";
-
-function readFavorites() {
-  if (typeof window === "undefined") return [];
-  try {
-    return JSON.parse(window.localStorage.getItem(favoriteKey) ?? "[]") as string[];
-  } catch {
-    return [];
-  }
-}
-
-function readLearned() {
-  if (typeof window === "undefined") return [];
-  try {
-    return JSON.parse(window.localStorage.getItem(learnedKey) ?? "[]") as string[];
-  } catch {
-    return [];
-  }
-}
-
 export function VocabCard({ item, compact = false }: { item: VocabularyItem; compact?: boolean }) {
-  const [favorite, setFavorite] = useState(false);
   const [learned, setLearned] = useState(false);
 
   useEffect(() => {
-    setFavorite(readFavorites().includes(item.id));
-    setLearned(readLearned().includes(item.id));
+    async function loadLearningState() {
+      const learnedState = await readLearningState("learned");
+      setLearned(learnedState.ids.includes(item.id));
+    }
+
+    void loadLearningState();
   }, [item.id]);
-
-  function toggleFavorite() {
-    const favorites = readFavorites();
-    const next = favorites.includes(item.id) ? favorites.filter((id) => id !== item.id) : [...favorites, item.id];
-    window.localStorage.setItem(favoriteKey, JSON.stringify(next));
-    setFavorite(next.includes(item.id));
-  }
-
-  function markLearned() {
-    const learnedItems = readLearned();
-    const next = Array.from(new Set([...learnedItems, item.id]));
-    window.localStorage.setItem(learnedKey, JSON.stringify(next));
+  async function markLearned() {
+    await saveLearningItemForCurrentUser("learned", {
+      id: item.id,
+      label: item.word,
+      itemType: "vocabulary",
+      category: item.category,
+      href: `/tu-dien?q=${encodeURIComponent(item.word)}`,
+    });
     setLearned(true);
   }
 
@@ -56,14 +35,6 @@ export function VocabCard({ item, compact = false }: { item: VocabularyItem; com
         <div className="grid h-16 w-16 place-items-center rounded-3xl bg-blue-50 text-blue-600">
           <Hand className="h-8 w-8" aria-hidden="true" />
         </div>
-        <button
-          type="button"
-          onClick={toggleFavorite}
-          className="grid h-10 w-10 place-items-center rounded-full bg-slate-50 text-blue-600 transition hover:bg-blue-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100"
-          aria-label={favorite ? `Bỏ lưu ${item.word}` : `Lưu ${item.word}`}
-        >
-          <Bookmark className={favorite ? "h-5 w-5 fill-blue-600" : "h-5 w-5"} aria-hidden="true" />
-        </button>
       </div>
       <div className="space-y-2">
         <Badge className="bg-blue-50 text-blue-700 ring-blue-100">{item.category}</Badge>

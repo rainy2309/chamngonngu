@@ -1,4 +1,5 @@
 export const practiceStatsKey = "cham_practice_stats";
+export const guestPracticeStatsKey = "cham_guest_practice_stats";
 
 export type PracticeAttempt = {
   score: number;
@@ -30,11 +31,26 @@ function isBrowser() {
   return typeof window !== "undefined";
 }
 
-export function readPracticeStats(): PracticeStats {
+function storageKey(userId?: string | null) {
+  return userId ? `cham_user_${userId}_practice_stats` : guestPracticeStatsKey;
+}
+
+function migrateLegacyPracticeStats() {
+  if (!isBrowser()) return;
+  const legacy = window.localStorage.getItem(practiceStatsKey);
+  if (!legacy) return;
+  if (!window.localStorage.getItem(guestPracticeStatsKey)) {
+    window.localStorage.setItem(guestPracticeStatsKey, legacy);
+  }
+  window.localStorage.removeItem(practiceStatsKey);
+}
+
+export function readPracticeStats(userId?: string | null): PracticeStats {
   if (!isBrowser()) return emptyPracticeStats;
+  migrateLegacyPracticeStats();
 
   try {
-    const parsed = JSON.parse(window.localStorage.getItem(practiceStatsKey) ?? "null") as Partial<PracticeStats> | null;
+    const parsed = JSON.parse(window.localStorage.getItem(storageKey(userId)) ?? "null") as Partial<PracticeStats> | null;
     if (!parsed || typeof parsed !== "object") return emptyPracticeStats;
 
     return {
@@ -50,10 +66,11 @@ export function readPracticeStats(): PracticeStats {
   }
 }
 
-export function savePracticeAttempt(attempt: PracticeAttempt) {
+export function savePracticeAttempt(attempt: PracticeAttempt, userId?: string | null) {
   if (!isBrowser()) return emptyPracticeStats;
+  migrateLegacyPracticeStats();
 
-  const current = readPracticeStats();
+  const current = readPracticeStats(userId);
   const isNewBest = attempt.score > current.bestScore || (attempt.score === current.bestScore && attempt.total > current.bestTotal);
   const next: PracticeStats = {
     bestScore: isNewBest ? attempt.score : current.bestScore,
@@ -64,18 +81,19 @@ export function savePracticeAttempt(attempt: PracticeAttempt) {
     reviewItems: current.reviewItems,
   };
 
-  window.localStorage.setItem(practiceStatsKey, JSON.stringify(next));
+  window.localStorage.setItem(storageKey(userId), JSON.stringify(next));
   return next;
 }
 
-export function saveReviewItem(id: string) {
+export function saveReviewItem(id: string, userId?: string | null) {
   if (!isBrowser()) return emptyPracticeStats;
+  migrateLegacyPracticeStats();
 
-  const current = readPracticeStats();
+  const current = readPracticeStats(userId);
   const next: PracticeStats = {
     ...current,
     reviewItems: Array.from(new Set([id, ...current.reviewItems])).slice(0, 30),
   };
-  window.localStorage.setItem(practiceStatsKey, JSON.stringify(next));
+  window.localStorage.setItem(storageKey(userId), JSON.stringify(next));
   return next;
 }

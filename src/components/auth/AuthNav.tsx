@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { LogOut, UserRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { mergeGuestLearningIntoUser, migrateLegacyLearningKeys } from "@/lib/authLearning";
 import { createClient, hasSupabaseEnv } from "@/lib/supabase/client";
 
 type AuthUser = {
@@ -20,9 +21,13 @@ export function AuthNav() {
     const supabase = createClient();
 
     async function loadUser() {
+      migrateLegacyLearningKeys();
       const {
         data: { user: authUser },
       } = await supabase.auth.getUser();
+      if (authUser) {
+        void mergeGuestLearningIntoUser(authUser.id);
+      }
       setUser(authUser ? { email: authUser.email ?? null, name: String(authUser.user_metadata.full_name ?? authUser.user_metadata.name ?? "") || null } : null);
     }
 
@@ -32,6 +37,9 @@ export function AuthNav() {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       const authUser = session?.user;
+      if (authUser) {
+        void mergeGuestLearningIntoUser(authUser.id);
+      }
       setUser(authUser ? { email: authUser.email ?? null, name: String(authUser.user_metadata.full_name ?? authUser.user_metadata.name ?? "") || null } : null);
     });
 
