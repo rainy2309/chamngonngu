@@ -2,17 +2,16 @@
 
 import { useEffect, useMemo, useState } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
-import { Bookmark, Check, CheckCircle2, ImageIcon, X } from "lucide-react";
+import { Check, CheckCircle2, ImageIcon, X } from "lucide-react";
+import { ModalNavigation } from "@/components/common/ModalNavigation";
 import { Button } from "@/components/ui/button";
 import { SafeVideo } from "@/components/ui/safe-video";
 import { alphabetSignData, type AlphabetItemType, type AlphabetSignItem } from "@/data/alphabetSignData";
-import { learningStorageKeys, saveLearningItem } from "@/lib/localLearning";
+import { readLearningState, saveLearningItemForCurrentUser, toggleLearningItem } from "@/lib/authLearning";
 import { createClient, hasSupabaseEnv } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import { normalizeLetterKey } from "@/lib/videoUtils";
-
-const learnedAlphabetKey = "cham_learned_alphabet";
-const favoriteSignsKey = "cham_favorite_signs";
+import { hasCanonicalLearningProgress } from "@/lib/progressDisplay";
 
 type BoardAlphabetItem = AlphabetSignItem & {
   media_id?: string | null;
@@ -97,9 +96,10 @@ function toggleUniqueString(key: string, id: string) {
   return next;
 }
 
-function saveViewedCourse() {
-  saveLearningItem(learningStorageKeys.viewedLessons, { id: "bang-chu-cai", label: "Ký hiệu bảng chữ cái" });
+async function saveViewedCourse() {
+  await saveLearningItemForCurrentUser("viewedLessons", { id: "bang-chu-cai", label: "Ký hiệu bảng chữ cái" });
 }
+
 
 function ImageBox({ item }: { item: AlphabetSignItem }) {
   const [failed, setFailed] = useState(false);
@@ -204,7 +204,7 @@ function BoardPreviewBox({ item }: { item: BoardAlphabetItem }) {
   );
 }
 
-function BoardCell({ item, learned, favorite, onClick }: { item: BoardAlphabetItem; learned: boolean; favorite: boolean; onClick: () => void }) {
+function BoardCell({ item, learned, onClick }: { item: BoardAlphabetItem; learned: boolean; onClick: () => void }) {
   return (
     <button
       type="button"
@@ -216,7 +216,6 @@ function BoardCell({ item, learned, favorite, onClick }: { item: BoardAlphabetIt
         learned
           ? "border-emerald-300 bg-emerald-50/70 shadow-emerald-100/70 hover:border-emerald-400 dark:border-emerald-500/50 dark:bg-emerald-500/10 dark:shadow-none"
           : "border-blue-100 shadow-blue-100/40 hover:border-blue-300 hover:bg-blue-50 dark:border-slate-700 dark:shadow-none dark:hover:border-blue-500/60 dark:hover:bg-blue-500/10",
-        favorite && !learned ? "border-amber-200 bg-amber-50/50 shadow-amber-100/60 dark:border-amber-500/50 dark:bg-amber-500/10 dark:shadow-none" : "",
       )}
     >
       <div className="relative">
@@ -225,16 +224,10 @@ function BoardCell({ item, learned, favorite, onClick }: { item: BoardAlphabetIt
           <span className="absolute -right-1 -top-1 grid h-5 w-5 place-items-center rounded-full bg-emerald-500 text-white ring-2 ring-white" aria-label="Đã học">
             <Check className="h-3 w-3" aria-hidden="true" />
           </span>
-        ) : null}
-        {favorite ? (
-          <span className="absolute -left-1 -top-1 grid h-5 w-5 place-items-center rounded-full bg-amber-500 text-white ring-2 ring-white" aria-label="Đã lưu yêu thích">
-            <Bookmark className="h-3 w-3 fill-current" aria-hidden="true" />
-          </span>
-        ) : null}
+        ) : null}
       </div>
       <div className={cn("flex min-h-5 flex-wrap justify-center gap-1", item.type === "vowel_modifier" ? "mt-1.5" : "mt-2")}>
         {learned ? <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-black text-emerald-800">Đã học</span> : null}
-        {favorite ? <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-black text-amber-800">Đã lưu</span> : null}
       </div>
       <span
         className={cn(
@@ -254,9 +247,10 @@ function getAlphabetProgressKeys(item: BoardAlphabetItem) {
   return [item.letter_key, item.id, item.label, item.display_label, `alphabet-${item.letter_key}`, `alphabet-${item.id}`].filter(Boolean);
 }
 
+
 function hasAlphabetProgress(ids: string[], item: BoardAlphabetItem) {
   const keys = getAlphabetProgressKeys(item);
-  return ids.some((id) => keys.includes(id));
+  return ids.some((id) => keys.includes(id)) || hasCanonicalLearningProgress(ids, { id: item.letter_key, label: item.display_label });
 }
 
 function getBoardItemId(letterKey: string) {
@@ -265,26 +259,33 @@ function getBoardItemId(letterKey: string) {
 
 function DetailModal({
   item,
-  learned,
-  favorite,
+  learned,
   onOpenChange,
-  onLearned,
-  onFavorite,
+  onLearned,
+  currentIndex,
+  total,
+  onPrevious,
+  onNext,
 }: {
   item: BoardAlphabetItem | null;
-  learned: boolean;
-  favorite: boolean;
+  learned: boolean;
   onOpenChange: (open: boolean) => void;
-  onLearned: () => void;
-  onFavorite: () => void;
+  onLearned: () => void;
+  currentIndex: number;
+  total: number;
+  onPrevious: () => void;
+  onNext: () => void;
 }) {
   return (
     <Dialog.Root open={Boolean(item)} onOpenChange={onOpenChange}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-50 bg-slate-950/45 backdrop-blur-sm" />
-        <Dialog.Content className="scrollbar-hide fixed left-1/2 top-1/2 z-50 max-h-[88vh] w-[calc(100vw-24px)] max-w-[900px] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-[1.5rem] bg-white p-4 shadow-2xl focus:outline-none focus:ring-4 focus:ring-blue-100 sm:p-5 lg:max-h-[80vh]">
+        <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[calc(100vw-24px)] max-w-[900px] -translate-x-1/2 -translate-y-1/2 overflow-visible focus:outline-none">
           {item ? (
-            <div className="grid gap-3">
+            <div className="relative overflow-visible">
+              <ModalNavigation variant="desktop" open={Boolean(item)} currentIndex={currentIndex} total={total} onPrevious={onPrevious} onNext={onNext} />
+              <div className="scrollbar-hide max-h-[88vh] overflow-y-auto rounded-[1.5rem] bg-white p-4 shadow-2xl focus:outline-none focus:ring-4 focus:ring-blue-100 sm:p-5 lg:max-h-[80vh]">
+            <div className="relative grid gap-3">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <p className="text-4xl font-black leading-none text-blue-700 sm:text-5xl">{item.display_label}</p>
@@ -296,6 +297,8 @@ function DetailModal({
                   </button>
                 </Dialog.Close>
               </div>
+
+              <ModalNavigation variant="mobile" enableKeyboard={false} open={Boolean(item)} currentIndex={currentIndex} total={total} onPrevious={onPrevious} onNext={onNext} />
 
               <div className="grid gap-4 lg:grid-cols-[0.88fr_1.12fr] lg:items-start">
                 <DetailMediaBox item={item} />
@@ -337,20 +340,18 @@ function DetailModal({
                 </div>
               </div>
 
-              <div className="grid gap-2 border-t border-blue-100 pt-3 sm:grid-cols-3">
+              <div className="grid gap-2 border-t border-blue-100 pt-3 sm:grid-cols-2">
                 <Button variant={learned ? "success" : "secondary"} className="w-full rounded-full" onClick={onLearned} aria-label={learned ? "Bấm để gỡ đã học" : "Đánh dấu đã học"} title={learned ? "Bấm để gỡ đã học" : "Đánh dấu đã học"}>
                   <CheckCircle2 className="h-5 w-5" aria-hidden="true" />
                   {learned ? "Đã học" : "Đánh dấu đã học"}
-                </Button>
-                <Button variant={favorite ? "default" : "secondary"} className={cn("w-full rounded-full", favorite ? "bg-amber-500 text-white hover:bg-amber-600" : "")} onClick={onFavorite} aria-label={favorite ? "Bấm để gỡ yêu thích" : "Lưu yêu thích"} title={favorite ? "Bấm để gỡ yêu thích" : "Lưu yêu thích"}>
-                  <Bookmark className={favorite ? "h-5 w-5 fill-current" : "h-5 w-5"} aria-hidden="true" />
-                  {favorite ? "Đã lưu yêu thích" : "Lưu yêu thích"}
-                </Button>
+                </Button>
                 <Dialog.Close asChild>
                   <Button variant="outline" className="w-full rounded-full">
                     Đóng
                   </Button>
                 </Dialog.Close>
+              </div>
+            </div>
               </div>
             </div>
           ) : null}
@@ -363,13 +364,16 @@ function DetailModal({
 export default function AlphabetCoursePage() {
   const [items, setItems] = useState<BoardAlphabetItem[]>(alphabetSignData);
   const [selectedItem, setSelectedItem] = useState<BoardAlphabetItem | null>(null);
-  const [learnedIds, setLearnedIds] = useState<string[]>([]);
-  const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
+  const [learnedIds, setLearnedIds] = useState<string[]>([]);
 
   useEffect(() => {
-    setLearnedIds(readStringArray(learnedAlphabetKey));
-    setFavoriteIds(readStringArray(favoriteSignsKey));
-    saveViewedCourse();
+    async function loadLearningState() {
+      const learnedState = await readLearningState("learnedAlphabet");
+      setLearnedIds(learnedState.ids);
+      await saveViewedCourse();
+    }
+
+    void loadLearningState();
 
     async function loadBoardImages() {
       if (!hasSupabaseEnv()) return;
@@ -436,14 +440,16 @@ export default function AlphabetCoursePage() {
     console.log("Selected alphabet video_url:", selectedItem.video_url);
   }, [selectedItem]);
 
-  function markLearned() {
+  async function markLearned() {
     if (!selectedItem) return;
-    setLearnedIds(toggleUniqueString(learnedAlphabetKey, selectedItem.letter_key));
-  }
-
-  function saveFavorite() {
-    if (!selectedItem) return;
-    setFavoriteIds(toggleUniqueString(favoriteSignsKey, selectedItem.letter_key));
+    const next = await toggleLearningItem("learnedAlphabet", {
+      id: selectedItem.letter_key,
+      label: selectedItem.display_label,
+      itemType: "alphabet",
+      category: getTypeLabel(selectedItem.type),
+      href: `/khoa-hoc/bang-chu-cai?letter=${encodeURIComponent(selectedItem.letter_key)}`,
+    });
+    setLearnedIds(next.ids);
   }
 
   const activeItems = useMemo(
@@ -452,8 +458,13 @@ export default function AlphabetCoursePage() {
   );
   const totalItems = activeItems.length;
   const learnedActiveCount = activeItems.filter((item) => hasAlphabetProgress(learnedIds, item)).length;
-  const selectedIsLearned = selectedItem ? hasAlphabetProgress(learnedIds, selectedItem) : false;
-  const selectedIsFavorite = selectedItem ? hasAlphabetProgress(favoriteIds, selectedItem) : false;
+  const selectedIsLearned = selectedItem ? hasAlphabetProgress(learnedIds, selectedItem) : false;
+  const selectedIndex = selectedItem ? activeItems.findIndex((item) => item.letter_key === selectedItem.letter_key) : -1;
+
+  function selectByIndex(index: number) {
+    const nextItem = activeItems[index];
+    if (nextItem) setSelectedItem(nextItem);
+  }
 
   return (
     <main className="flex-1 bg-gradient-to-b from-blue-50 via-white to-white px-4 pb-8 pt-3 sm:px-6 sm:pt-4 lg:px-8">
@@ -497,7 +508,7 @@ export default function AlphabetCoursePage() {
                   <div className={cn("grid gap-3", section.type === "vowel_modifier" ? "mx-auto w-full max-w-3xl grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3" : "grid-cols-2 min-[390px]:grid-cols-3 sm:grid-cols-4 md:grid-cols-5 xl:grid-cols-7")}>
                     {sectionItems.map((item) => (
                       <div key={item.letter_key} id={getBoardItemId(item.letter_key)} className="min-w-0 scroll-mt-28">
-                        <BoardCell item={item} learned={hasAlphabetProgress(learnedIds, item)} favorite={hasAlphabetProgress(favoriteIds, item)} onClick={() => setSelectedItem(item)} />
+                        <BoardCell item={item} learned={hasAlphabetProgress(learnedIds, item)} onClick={() => setSelectedItem(item)} />
                       </div>
                     ))}
                   </div>
@@ -511,11 +522,13 @@ export default function AlphabetCoursePage() {
 
       <DetailModal
         item={selectedItem}
-        learned={selectedIsLearned}
-        favorite={selectedIsFavorite}
+        learned={selectedIsLearned}
         onOpenChange={(open) => !open && setSelectedItem(null)}
-        onLearned={markLearned}
-        onFavorite={saveFavorite}
+        onLearned={markLearned}
+        currentIndex={selectedIndex}
+        total={activeItems.length}
+        onPrevious={() => selectByIndex(selectedIndex - 1)}
+        onNext={() => selectByIndex(selectedIndex + 1)}
       />
     </main>
   );

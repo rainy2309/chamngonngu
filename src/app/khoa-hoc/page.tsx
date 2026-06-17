@@ -20,7 +20,7 @@ const courses = [
   },
   {
     title: "Luyện tập",
-    description: "Ôn lại các mục đã học, mục yêu thích và làm trắc nghiệm nhanh từ bộ từ vựng hiện có.",
+    description: "Ôn lại các mục đã học và làm trắc nghiệm nhanh từ bộ từ vựng hiện có.",
     button: "Vào luyện tập",
     href: "/khoa-hoc/luyen-tap",
     icon: Brain,

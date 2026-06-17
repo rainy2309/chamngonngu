@@ -2,14 +2,16 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, Award, Heart, KeyRound, Save, Sparkles, UserRound, CheckCircle2 } from "lucide-react";
+import * as Dialog from "@radix-ui/react-dialog";
+import { ArrowRight, Award, CheckCircle2, KeyRound, Save, Search, Sparkles, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { createClient, hasSupabaseEnv, missingEnvMessage } from "@/lib/supabase/client";
 import { getBestQuizScore } from "@/lib/quiz";
-import { learningStorageKeys, readBestQuizScore, readLearningItems, type StoredLearningItem } from "@/lib/localLearning";
-import { addDictionaryProgressItems, getProgressDisplayInfo, isUuidLike } from "@/lib/progressDisplay";
+import { readLearningState } from "@/lib/authLearning";
+import type { StoredLearningItem } from "@/lib/localLearning";
+import { addDictionaryProgressItems, dedupeLearningItemsByCanonical, getProgressDisplayInfo, isUuidLike } from "@/lib/progressDisplay";
 import { readPracticeStats, type PracticeStats } from "@/lib/practiceStats";
 
 const roleLabels: Record<string, string> = {
@@ -79,6 +81,155 @@ function getStoredItemIds(items: StoredLearningItem[]) {
   return Array.from(new Set(items.map((item) => item.id).filter(Boolean)));
 }
 
+function mergeStoredItems(items: StoredLearningItem[]) {
+  const byId = new Map<string, StoredLearningItem>();
+  for (const item of items) {
+    const existing = byId.get(item.id);
+    if (!existing || new Date(item.updatedAt).getTime() > new Date(existing.updatedAt).getTime()) {
+      byId.set(item.id, item);
+    }
+  }
+  return Array.from(byId.values()).sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+}
+
+type ResolvedLearningItem = {
+  key: string;
+  label: string;
+  typeLabel: string;
+  category?: string;
+  href: string;
+  updatedAt: string;
+};
+
+function resolveLearningItem(item: StoredLearningItem, index = 0): ResolvedLearningItem {
+  const baseDisplay = getProgressDisplayInfo(item.id, item.label);
+  const hasStoredLabel = item.label && item.label !== item.id && !isUuidLike(item.label);
+  const display =
+    baseDisplay.missingDetails && hasStoredLabel
+      ? {
+          ...baseDisplay,
+          label: item.label,
+          typeLabel: item.itemType === "dictionary" || item.itemType === "vocabulary" ? "Từ vựng" : "Mục học",
+          category: item.category,
+          href: item.href ?? baseDisplay.href,
+          missingDetails: false,
+        }
+      : {
+          ...baseDisplay,
+          category: baseDisplay.category ?? item.category,
+          href: item.href ?? baseDisplay.href,
+        };
+
+  return {
+    key: `${item.id}-${item.updatedAt}-${index}`,
+    label: display.label,
+    typeLabel: display.typeLabel,
+    category: display.category,
+    href: item.href ?? display.href,
+    updatedAt: item.updatedAt,
+  };
+}
+
+function LearningItemLink({ item, onClick }: { item: ResolvedLearningItem; onClick?: () => void }) {
+  return (
+    <Link href={item.href} onClick={onClick} className="group flex min-w-0 items-start justify-between gap-3 rounded-2xl border border-blue-100 bg-white px-4 py-3 transition hover:border-blue-300 hover:bg-blue-50/60 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100 dark:border-slate-700 dark:bg-slate-900 dark:hover:border-blue-500 dark:hover:bg-blue-500/10">
+      <div className="min-w-0">
+        <span className="block min-w-0 break-words font-bold text-slate-800 dark:text-slate-100">{item.label}</span>
+        <span className="mt-1 block text-xs font-bold text-slate-500 dark:text-slate-400">
+          {item.typeLabel}
+          {item.category ? ` · ${item.category}` : ""}
+        </span>
+      </div>
+      <span className="flex shrink-0 items-center gap-2 whitespace-nowrap text-xs font-bold text-blue-700 dark:text-blue-200">
+        {new Date(item.updatedAt).toLocaleDateString("vi-VN")}
+        <ArrowRight className="h-3.5 w-3.5 transition group-hover:translate-x-0.5" aria-hidden="true" />
+      </span>
+    </Link>
+  );
+}
+
+function LearningPreviewList({
+  items,
+  emptyText,
+  onViewAll,
+}: {
+  items: StoredLearningItem[];
+  emptyText: string;
+  onViewAll?: () => void;
+}) {
+  if (!items.length) {
+    return <p className="rounded-3xl bg-slate-50 p-4 text-sm font-semibold text-slate-500 dark:bg-slate-800 dark:text-slate-300">{emptyText}</p>;
+  }
+
+  const previewItems = items.slice(0, 5).map(resolveLearningItem);
+
+  return (
+    <div className="grid gap-2">
+      {previewItems.map((item) => (
+        <LearningItemLink key={item.key} item={item} />
+      ))}
+      {items.length > previewItems.length && onViewAll ? (
+        <Button type="button" variant="outline" onClick={onViewAll} className="mt-1 min-h-11 rounded-full bg-white text-blue-700 dark:bg-slate-900 dark:text-blue-100">
+          Xem tất cả {items.length} mục
+        </Button>
+      ) : null}
+    </div>
+  );
+}
+
+function FullLearningListModal({
+  open,
+  onOpenChange,
+  title,
+  items,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  title: string;
+  items: StoredLearningItem[];
+}) {
+  const [query, setQuery] = useState("");
+  const resolvedItems = useMemo(() => items.map(resolveLearningItem), [items]);
+  const normalizedQuery = query.trim().toLowerCase();
+  const visibleItems = normalizedQuery
+    ? resolvedItems.filter((item) => `${item.label} ${item.typeLabel} ${item.category ?? ""}`.toLowerCase().includes(normalizedQuery))
+    : resolvedItems;
+
+  return (
+    <Dialog.Root open={open} onOpenChange={onOpenChange}>
+      <Dialog.Portal>
+        <Dialog.Overlay className="fixed inset-0 z-50 bg-slate-950/45 backdrop-blur-sm" />
+        <Dialog.Content className="fixed left-1/2 top-1/2 z-50 grid max-h-[88vh] w-[calc(100vw-24px)] max-w-2xl -translate-x-1/2 -translate-y-1/2 gap-4 overflow-hidden rounded-[1.5rem] border border-blue-100 bg-white p-4 shadow-2xl focus:outline-none focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-900 sm:p-5">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <Dialog.Title className="text-xl font-black text-slate-950 dark:text-white sm:text-2xl">{title}</Dialog.Title>
+              <p className="mt-1 text-sm font-semibold text-slate-500 dark:text-slate-400">{items.length} mục trong nhật ký học tập</p>
+            </div>
+            <Dialog.Close asChild>
+              <button type="button" className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-slate-100 text-slate-700 hover:bg-blue-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100 dark:bg-slate-800 dark:text-slate-100" aria-label="Đóng">
+                <X className="h-5 w-5" aria-hidden="true" />
+              </button>
+            </Dialog.Close>
+          </div>
+
+          <label className="relative block">
+            <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" aria-hidden="true" />
+            <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Tìm trong danh sách..." className="h-11 rounded-full pl-10" />
+          </label>
+
+          <div className="scrollbar-hide grid max-h-[58vh] gap-2 overflow-y-auto pr-1">
+            {visibleItems.length ? (
+              visibleItems.map((item) => <LearningItemLink key={item.key} item={item} onClick={() => onOpenChange(false)} />)
+            ) : (
+              <p className="rounded-3xl bg-slate-50 p-4 text-sm font-semibold text-slate-500 dark:bg-slate-800 dark:text-slate-300">Không tìm thấy mục phù hợp.</p>
+            )}
+          </div>
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
+  );
+}
+
 export default function ProfilePage() {
   const [userId, setUserId] = useState("");
   const [email, setEmail] = useState("");
@@ -91,22 +242,26 @@ export default function ProfilePage() {
   const [saving, setSaving] = useState(false);
   const [passwordEmailLoading, setPasswordEmailLoading] = useState(false);
   const [profileTableReady, setProfileTableReady] = useState(true);
-  const [learnedSigns, setLearnedSigns] = useState<StoredLearningItem[]>([]);
-  const [favoriteSigns, setFavoriteSigns] = useState<StoredLearningItem[]>([]);
+  const [learnedSigns, setLearnedSigns] = useState<StoredLearningItem[]>([]);
+  const [fullListModal, setFullListModal] = useState<"learned" | null>(null);
   const [bestScore, setBestScore] = useState(0);
   const [practiceStats, setPracticeStats] = useState<PracticeStats>(() => readPracticeStats());
 
   useEffect(() => {
-    const initialLearned = readLearningItems(learningStorageKeys.learned);
-    const initialFavorites = readLearningItems(learningStorageKeys.favorites);
-
-    setLearnedSigns(initialLearned);
-    setFavoriteSigns(initialFavorites);
-    setBestScore(readBestQuizScore());
-    setPracticeStats(readPracticeStats());
+    let initialLearned: StoredLearningItem[] = [];
 
     async function loadProfile() {
       try {
+        const [learnedState, learnedAlphabetState] = await Promise.all([
+          readLearningState("learned"),
+          readLearningState("learnedAlphabet"),
+        ]);
+        initialLearned = dedupeLearningItemsByCanonical(mergeStoredItems([...learnedState.items, ...learnedAlphabetState.items]));
+
+        setLearnedSigns(initialLearned);
+        setBestScore(await getBestQuizScore());
+        setPracticeStats(readPracticeStats());
+
         if (!hasSupabaseEnv()) {
           setMessage(missingEnvMessage);
           setProfileTableReady(false);
@@ -133,12 +288,13 @@ export default function ProfilePage() {
         setRole(metadataRole || "user");
         setAvatarUrl(metadataAvatar);
         setJoinedAt(user.created_at ?? "");
+        setPracticeStats(readPracticeStats(user.id));
 
         const supabaseBestScore = await getBestQuizScore();
         setBestScore((current) => Math.max(current, supabaseBestScore));
 
         try {
-          const savedIds = getStoredItemIds([...initialLearned, ...initialFavorites]);
+          const savedIds = getStoredItemIds(initialLearned);
           const uuidIds = savedIds.filter(isUuidLike);
           const textKeys = savedIds.filter((id) => !isUuidLike(id)).slice(0, 80);
           const matchingRows: any[] = [];
@@ -164,8 +320,8 @@ export default function ProfilePage() {
 
           if (matchingRows.length) {
             addDictionaryProgressItems(matchingRows);
-            setLearnedSigns([...initialLearned]);
-            setFavoriteSigns([...initialFavorites]);
+            initialLearned = dedupeLearningItemsByCanonical(initialLearned);
+            setLearnedSigns(initialLearned);
           }
         } catch (error) {
           if (process.env.NODE_ENV === "development") {
@@ -215,8 +371,8 @@ export default function ProfilePage() {
   }, []);
 
   const hasJournal = useMemo(
-    () => learnedSigns.length + favoriteSigns.length + bestScore + practiceStats.totalSessions > 0,
-    [bestScore, favoriteSigns.length, learnedSigns.length, practiceStats.totalSessions],
+    () => learnedSigns.length + bestScore + practiceStats.totalSessions > 0,
+    [bestScore, learnedSigns.length, practiceStats.totalSessions],
   );
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -267,7 +423,7 @@ export default function ProfilePage() {
 
   const statCards = [
     { title: "Mục đã học", value: learnedSigns.length, icon: CheckCircle2 },
-    { title: "Mục yêu thích", value: favoriteSigns.length, icon: Heart },
+    { title: "Lượt luyện tập", value: practiceStats.totalSessions, icon: Sparkles },
     { title: "Điểm luyện tập cao nhất", value: practiceStats.bestScore ? `${practiceStats.bestScore}/${practiceStats.bestTotal || 10}` : "0", icon: Award },
   ];
 
@@ -277,7 +433,7 @@ export default function ProfilePage() {
         <section>
           <p className="text-sm font-black uppercase text-blue-600">Khu vực cá nhân</p>
           <h1 className="mt-2 text-3xl font-black text-slate-950 sm:text-4xl">Hồ sơ học tập</h1>
-          <p className="mt-2 max-w-3xl text-sm font-semibold leading-7 text-slate-600 sm:text-base">Theo dõi các mục đã học, yêu thích và kết quả luyện tập của bạn.</p>
+          <p className="mt-2 max-w-3xl text-sm font-semibold leading-7 text-slate-600 sm:text-base">Theo dõi các mục đã học và kết quả luyện tập của bạn.</p>
         </section>
 
         <section className="grid gap-4">
@@ -320,15 +476,7 @@ export default function ProfilePage() {
                 <CardTitle>Mục đã học</CardTitle>
               </CardHeader>
               <CardContent>
-                <RecentList items={learnedSigns} emptyText="Bạn chưa đánh dấu mục nào là đã học." />
-              </CardContent>
-            </Card>
-            <Card className="rounded-[1.75rem] border-blue-100 shadow-lg shadow-blue-100/50">
-              <CardHeader>
-                <CardTitle>Mục yêu thích</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <RecentList items={favoriteSigns} emptyText="Bạn chưa lưu mục yêu thích nào." />
+                <LearningPreviewList items={learnedSigns} emptyText="Bạn chưa đánh dấu mục nào là đã học." onViewAll={() => setFullListModal("learned")} />
               </CardContent>
             </Card>
             <Card className="rounded-[1.75rem] border-blue-100 shadow-lg shadow-blue-100/50">
@@ -419,6 +567,13 @@ export default function ProfilePage() {
             )}
           </CardContent>
         </Card>
+
+        <FullLearningListModal
+          open={fullListModal === "learned"}
+          onOpenChange={(open) => setFullListModal(open ? "learned" : null)}
+          title="Tất cả mục đã học"
+          items={learnedSigns}
+        />
       </div>
     </main>
   );

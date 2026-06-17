@@ -113,7 +113,7 @@ export default function RegisterPage() {
             <UserPlus aria-hidden="true" />
           </div>
           <CardTitle className="text-2xl sm:text-3xl">Tạo tài khoản CHẠM</CardTitle>
-          <p className="text-sm font-semibold leading-7 text-slate-600 sm:text-base">Lưu từ yêu thích, tiến độ học và điểm quiz.</p>
+          <p className="text-sm font-semibold leading-7 text-slate-600 sm:text-base">Lưu tiến độ học và điểm quiz.</p>
         </CardHeader>
         <CardContent className="grid gap-4">
           <Button type="button" variant="outline" disabled={googleLoading || loading} onClick={continueWithGoogle} className="min-h-12 w-full rounded-2xl border border-slate-200 bg-white font-black hover:bg-blue-50">
