@@ -1,4 +1,4 @@
-import { BookMarked, Compass, Eye, Hand, Layers3, MapPinned, UsersRound } from "lucide-react";
+import { BookOpen, Compass, Eye, Hand, Layers3, MapPinned, UsersRound } from "lucide-react";
 
 const sections = [
   {
@@ -68,7 +68,7 @@ export default function SignGrammarPage() {
 
         <section className="mt-10 rounded-[2rem] border border-blue-100 bg-white p-6 shadow-xl shadow-blue-100/50">
           <div className="flex items-center gap-3">
-            <BookMarked className="h-6 w-6 text-blue-700" aria-hidden="true" />
+            <BookOpen className="h-6 w-6 text-blue-700" aria-hidden="true" />
             <h2 className="text-2xl font-black text-slate-950">Nguồn tham khảo cần kiểm chứng</h2>
           </div>
           <div className="mt-5 grid gap-3 md:grid-cols-2">

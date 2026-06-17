@@ -1,6 +1,7 @@
 "use client";
 
 import { createClient, hasSupabaseEnv } from "@/lib/supabase/client";
+import { readLearningState, saveLearningItemForCurrentUser } from "@/lib/authLearning";
 import type { LearningProgress } from "@/types/progress";
 
 const defaultProgress: LearningProgress = {
@@ -66,7 +67,7 @@ async function getUserId() {
 }
 
 export async function markWordLearned(wordId: string) {
-  saveLocalLearned(wordId);
+  await saveLearningItemForCurrentUser("learned", { id: wordId, label: wordId, itemType: "dictionary", href: "/tu-dien" });
   const userId = await getUserId();
   if (!userId) return;
 
@@ -85,9 +86,11 @@ export async function markWordLearned(wordId: string) {
 }
 
 export async function markWordForReview(wordId: string) {
-  saveLocalReview(wordId);
   const userId = await getUserId();
-  if (!userId) return;
+  if (!userId) {
+    saveLocalReview(wordId);
+    return;
+  }
 
   const supabase = createClient();
   const { error } = await supabase.from("user_progress").upsert(
@@ -105,7 +108,10 @@ export async function markWordForReview(wordId: string) {
 
 export async function getUserProgress(): Promise<LearningProgress> {
   const userId = await getUserId();
-  if (!userId) return getProgress();
+  if (!userId) {
+    const learnedState = await readLearningState("learned");
+    return { ...getProgress(), learnedWords: learnedState.ids };
+  }
 
   const supabase = createClient();
   const { data, error } = await supabase
@@ -131,8 +137,10 @@ export async function getUserProgress(): Promise<LearningProgress> {
 export async function getProgressSummary(): Promise<ProgressSummary> {
   const userId = await getUserId();
   if (!userId) {
+    const learnedState = await readLearningState("learned");
     return {
       ...getProgress(),
+      learnedWords: learnedState.ids,
       quizHistory: [],
       isAuthenticated: false,
     };
@@ -178,9 +186,14 @@ export function saveBestQuizScore(score: number) {
   if (score > progress.bestQuizScore) {
     window.localStorage.setItem(keys.bestQuizScore, String(score));
   }
-  const chamScore = Number(window.localStorage.getItem("cham_best_quiz_score") ?? 0);
+  const legacyScore = window.localStorage.getItem("cham_best_quiz_score");
+  if (legacyScore && !window.localStorage.getItem("cham_guest_best_quiz_score")) {
+    window.localStorage.setItem("cham_guest_best_quiz_score", legacyScore);
+  }
+  window.localStorage.removeItem("cham_best_quiz_score");
+  const chamScore = Number(window.localStorage.getItem("cham_guest_best_quiz_score") ?? 0);
   if (score > chamScore) {
-    window.localStorage.setItem("cham_best_quiz_score", String(score));
+    window.localStorage.setItem("cham_guest_best_quiz_score", String(score));
   }
 }
 

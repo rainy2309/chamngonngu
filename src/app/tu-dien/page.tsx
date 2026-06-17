@@ -4,7 +4,7 @@ import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import * as Dialog from "@radix-ui/react-dialog";
-import { Bookmark, CheckCircle2, HelpCircle, Info, Loader2, Search, Sparkles, X } from "lucide-react";
+import { CheckCircle2, HelpCircle, Info, Loader2, Search, Sparkles, X } from "lucide-react";
 import { AIExplanation } from "@/components/dictionary/AIExplanation";
 import { CommunityVideos } from "@/components/dictionary/CommunityVideos";
 import { WordComments } from "@/components/dictionary/WordComments";
@@ -14,12 +14,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { SafeVideo } from "@/components/ui/safe-video";
 import { signCategories, signDictionaryData, type SignDictionaryItem } from "@/data/signDictionaryData";
+import { readLearningState, toggleLearningItem } from "@/lib/authLearning";
 import { createClient, hasSupabaseEnv } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import { getVietnameseFirstLetter, groupDictionaryByLetter, normalizeVietnameseText, vietnameseAlphabet } from "@/lib/vietnameseText";
-
-const favoriteKey = "cham_favorite_signs";
-const learnedKey = "cham_learned_signs";
 
 const difficultyLabels = {
   easy: "Dễ",
@@ -176,7 +174,6 @@ function DictionaryContent() {
   const [region, setRegion] = useState(regionParam);
   const [difficulty, setDifficulty] = useState(difficultyParam);
   const [selected, setSelected] = useState<SignDictionaryItem | null>(null);
-  const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
   const [learnedIds, setLearnedIds] = useState<string[]>([]);
   const [dictWords, setDictWords] = useState<SignDictionaryItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -201,8 +198,12 @@ function DictionaryContent() {
   }, [difficultyParam]);
 
   useEffect(() => {
-    setFavoriteIds(readLocalArray(favoriteKey));
-    setLearnedIds(readLocalArray(learnedKey));
+    async function loadLearningState() {
+      const learnedState = await readLearningState("learned");
+      setLearnedIds(learnedState.ids);
+    }
+
+    void loadLearningState();
 
     async function loadData() {
       try {
@@ -281,7 +282,6 @@ function DictionaryContent() {
   }, [activeLetter, baseFiltered]);
 
   const grouped = useMemo(() => groupDictionaryByLetter(filtered), [filtered]);
-  const selectedIsFavorite = selected ? favoriteIds.includes(selected.id) : false;
   const selectedIsLearned = selected ? learnedIds.includes(selected.id) : false;
 
   useEffect(() => {
@@ -290,12 +290,9 @@ function DictionaryContent() {
     }
   }, [activeLetter, availableLetters]);
 
-  function toggleFavorite(item: SignDictionaryItem) {
-    setFavoriteIds(toggleLocalItem(favoriteKey, item));
-  }
-
-  function toggleLearned(item: SignDictionaryItem) {
-    setLearnedIds(toggleLocalItem(learnedKey, item));
+  async function toggleLearned(item: SignDictionaryItem) {
+    const next = await toggleLearningItem("learned", makeDictionaryLearningRecord(item));
+    setLearnedIds(next.ids);
   }
 
   return (
@@ -381,7 +378,7 @@ function DictionaryContent() {
                   </h2>
                   <div className="grid grid-cols-[repeat(auto-fit,minmax(180px,1fr))] gap-3">
                     {group.items.map((item) => (
-                      <DictionaryCard key={item.id} item={item} favorite={favoriteIds.includes(item.id)} learned={learnedIds.includes(item.id)} onFavorite={() => toggleFavorite(item)} onOpen={() => setSelected(item)} />
+                      <DictionaryCard key={item.id} item={item} learned={learnedIds.includes(item.id)} onOpen={() => setSelected(item)} />
                     ))}
                   </div>
                 </section>
@@ -398,10 +395,8 @@ function DictionaryContent() {
 
       <CompactSignDetailModal
         item={selected}
-        favorite={selectedIsFavorite}
         learned={selectedIsLearned}
         onClose={() => setSelected(null)}
-        onFavorite={() => selected && toggleFavorite(selected)}
         onLearned={() => selected && toggleLearned(selected)}
       />
 
@@ -439,32 +434,28 @@ function FilterSelect({ label, value, onChange, options, getLabel }: { label: st
   );
 }
 
-function DictionaryCard({ item, favorite, learned, onFavorite, onOpen }: { item: SignDictionaryItem; favorite: boolean; learned: boolean; onFavorite: () => void; onOpen: () => void }) {
+function DictionaryCard({ item, learned, onOpen }: { item: SignDictionaryItem; learned: boolean; onOpen: () => void }) {
   return (
-    <article role="button" tabIndex={0} onClick={onOpen} onKeyDown={(event) => event.key === "Enter" && onOpen()} className={cn("grid cursor-pointer gap-2.5 rounded-2xl border bg-white p-3 shadow-sm transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100 dark:bg-slate-900 dark:shadow-none", learned ? "border-emerald-300 bg-emerald-50/70 shadow-emerald-100/70 hover:border-emerald-400 dark:border-emerald-500/50 dark:bg-emerald-500/10" : "border-blue-100 shadow-blue-100/40 hover:border-blue-300 dark:border-slate-700", favorite && !learned ? "border-amber-200 bg-amber-50/50 shadow-amber-100/60 dark:border-amber-500/40 dark:bg-amber-500/10" : "")}>
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="mb-2 flex flex-wrap gap-1.5">
-            {learned ? <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-black text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-100">Đã học</span> : null}
-            {favorite ? <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-black text-amber-800 dark:bg-amber-500/20 dark:text-amber-100">Đã lưu</span> : null}
-          </div>
-          <h3 className="line-clamp-2 min-h-[2.5rem] text-base font-black leading-5 text-slate-950 dark:text-white">{item.word}</h3>
-          <div className="mt-2 flex flex-wrap gap-1.5">
-            <Badge className="bg-blue-50 px-2 py-0.5 text-[11px] text-blue-700 ring-blue-100 dark:bg-blue-500/15 dark:text-blue-100 dark:ring-blue-500/20">{item.category}</Badge>
-          </div>
+    <article
+      role="button"
+      tabIndex={0}
+      onClick={onOpen}
+      onKeyDown={(event) => event.key === "Enter" && onOpen()}
+      className={cn(
+        "grid cursor-pointer gap-2.5 rounded-2xl border bg-white p-3 shadow-sm transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100 dark:bg-slate-900 dark:shadow-none",
+        learned
+          ? "border-emerald-300 bg-emerald-50/70 shadow-emerald-100/70 hover:border-emerald-400 dark:border-emerald-500/50 dark:bg-emerald-500/10"
+          : "border-blue-100 shadow-blue-100/40 hover:border-blue-300 dark:border-slate-700",
+      )}
+    >
+      <div className="min-w-0">
+        <div className="mb-2 flex flex-wrap gap-1.5">
+          {learned ? <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-black text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-100">Đã học</span> : null}
         </div>
-        <button
-          type="button"
-          onClick={(event) => {
-            event.stopPropagation();
-            onFavorite();
-          }}
-          className={cn("grid h-9 w-9 shrink-0 place-items-center rounded-full transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100", favorite ? "bg-amber-500 text-white hover:bg-amber-600" : "bg-blue-50 text-blue-700 hover:bg-blue-100 dark:bg-slate-800 dark:text-blue-200")}
-          aria-label={favorite ? `Bấm để gỡ yêu thích ${item.word}` : `Lưu yêu thích ${item.word}`}
-          title={favorite ? "Bấm để gỡ yêu thích" : "Lưu yêu thích"}
-        >
-          <Bookmark className={favorite ? "h-4 w-4 fill-current" : "h-4 w-4"} aria-hidden="true" />
-        </button>
+        <h3 className="line-clamp-2 min-h-[2.5rem] text-base font-black leading-5 text-slate-950 dark:text-white">{item.word}</h3>
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          <Badge className="bg-blue-50 px-2 py-0.5 text-[11px] text-blue-700 ring-blue-100 dark:bg-blue-500/15 dark:text-blue-100 dark:ring-blue-500/20">{item.category}</Badge>
+        </div>
       </div>
       <p className="line-clamp-2 text-xs font-semibold leading-5 text-slate-600 dark:text-slate-300">{item.simpleExplanation || item.description || item.meaning}</p>
     </article>
@@ -607,17 +598,13 @@ function EmptySearchState({ query, onContribute }: { query: string; onContribute
 
 function CompactSignDetailModal({
   item,
-  favorite,
   learned,
   onClose,
-  onFavorite,
   onLearned,
 }: {
   item: SignDictionaryItem | null;
-  favorite: boolean;
   learned: boolean;
   onClose: () => void;
-  onFavorite: () => void;
   onLearned: () => void;
 }) {
   const simpleExplanation = item?.simpleExplanation;
@@ -749,14 +736,10 @@ function CompactSignDetailModal({
               </div>
 
               {/* ─── Footer Actions ─── */}
-              <div className="shrink-0 grid gap-2 border-t border-slate-100 bg-white p-3 sm:grid-cols-3 sm:p-4">
+              <div className="shrink-0 grid gap-2 border-t border-slate-100 bg-white p-3 sm:grid-cols-2 sm:p-4">
                 <Button variant={learned ? "success" : "secondary"} onClick={onLearned} className="min-h-11 rounded-full text-sm" aria-label={learned ? "Bấm để gỡ đã học" : "Đánh dấu đã học"} title={learned ? "Bấm để gỡ đã học" : "Đánh dấu đã học"}>
                   <CheckCircle2 className="h-5 w-5" aria-hidden="true" />
                   {learned ? "Đã học" : "Đánh dấu đã học"}
-                </Button>
-                <Button variant={favorite ? "default" : "secondary"} onClick={onFavorite} className={cn("min-h-11 rounded-full text-sm", favorite ? "bg-amber-500 text-white hover:bg-amber-600" : "")} aria-label={favorite ? "Bấm để gỡ yêu thích" : "Lưu yêu thích"} title={favorite ? "Bấm để gỡ yêu thích" : "Lưu yêu thích"}>
-                  <Bookmark className={favorite ? "h-5 w-5 fill-current" : "h-5 w-5"} aria-hidden="true" />
-                  {favorite ? "Đã lưu" : "Lưu yêu thích"}
                 </Button>
                 <Dialog.Close asChild>
                   <Button variant="outline" className="min-h-11 rounded-full text-sm">Đóng</Button>

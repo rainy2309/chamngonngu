@@ -8,7 +8,7 @@ import { SafeVideo } from "@/components/ui/safe-video";
 import { Card, CardContent } from "@/components/ui/card";
 import { alphabetSignData } from "@/data/alphabetSignData";
 import { vocabularyCourseData } from "@/data/vocabularyCourseData";
-import { learningStorageKeys, readLearningItems } from "@/lib/localLearning";
+import { readLearningState, getCurrentUserId } from "@/lib/authLearning";
 import { readPracticeStats, savePracticeAttempt, type PracticeStats } from "@/lib/practiceStats";
 import { getProgressDisplayInfo } from "@/lib/progressDisplay";
 import { createClient, hasSupabaseEnv } from "@/lib/supabase/client";
@@ -162,14 +162,19 @@ export default function PracticePage() {
   const [score, setScore] = useState(0);
   const [finished, setFinished] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [learningUserId, setLearningUserId] = useState<string | null>(null);
   const [stats, setStats] = useState<PracticeStats>(() => readPracticeStats());
 
   useEffect(() => {
-    const learned = [
-      ...readLearningItems(learningStorageKeys.learned).map((item) => item.id),
-      ...getLocalIds("cham_learned_alphabet"),
-    ];
-    setLearnedIds(uniqueStrings(learned));
+    async function loadLearningOwnerState() {
+      const currentUserId = await getCurrentUserId();
+      setLearningUserId(currentUserId);
+      const [learnedState, alphabetState] = await Promise.all([readLearningState("learned"), readLearningState("learnedAlphabet")]);
+      setLearnedIds(uniqueStrings([...learnedState.ids, ...alphabetState.ids]));
+      setStats(readPracticeStats(currentUserId));
+    }
+
+    void loadLearningOwnerState();
 
     async function loadPracticeItems() {
       const fallbackItems = [...makeStaticVocabularyItems(), ...makeStaticAlphabetItems()];
@@ -288,7 +293,7 @@ export default function PracticePage() {
         mode: mode === "quick" ? "Trắc nghiệm nhanh" : "Ôn theo chủ đề",
         topic: mode === "topic" ? selectedTopic : undefined,
         practicedAt: new Date().toISOString(),
-      });
+      }, learningUserId);
       setStats(nextStats);
       setFinished(true);
       return;
@@ -357,7 +362,7 @@ export default function PracticePage() {
                 <h2 className="text-2xl font-black">Bạn trả lời đúng {score}/{questions.length} câu</h2>
                 <p className="font-semibold text-slate-600 dark:text-slate-300">Độ chính xác: {Math.round((score / questions.length) * 100)}%</p>
                 <p className="text-sm font-semibold text-slate-500 dark:text-slate-300">
-                  Đã lưu kết quả vào hồ sơ. Tổng lượt luyện tập: {stats.totalSessions}
+                  Kết quả đã cập nhật vào hồ sơ. Tổng lượt luyện tập: {stats.totalSessions}
                 </p>
                 <div className="flex flex-col justify-center gap-2 sm:flex-row">
                   <Button onClick={startQuiz} className="rounded-full"><RotateCcw className="h-4 w-4" /> Luyện lại</Button>

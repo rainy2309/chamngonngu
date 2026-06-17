@@ -1,5 +1,4 @@
 import { createClient, hasSupabaseEnv } from "@/lib/supabase/client";
-import { saveBestQuizScore } from "@/lib/progress";
 import type { QuizMode, QuizQuestion } from "@/types/quiz";
 import type { VocabularyItem } from "@/types/vocabulary";
 
@@ -63,9 +62,38 @@ async function getUserId() {
   return user?.id ?? null;
 }
 
+function migrateLegacyBestScore() {
+  if (typeof window === "undefined") return;
+  const legacy = window.localStorage.getItem("cham_best_quiz_score");
+  if (!legacy) return;
+  if (!window.localStorage.getItem("cham_guest_best_quiz_score")) {
+    window.localStorage.setItem("cham_guest_best_quiz_score", legacy);
+  }
+  window.localStorage.removeItem("cham_best_quiz_score");
+}
+
+function bestScoreKey(userId: string | null) {
+  return userId ? `cham_user_${userId}_best_quiz_score` : "cham_guest_best_quiz_score";
+}
+
+function readLocalBestScore(userId: string | null) {
+  if (typeof window === "undefined") return 0;
+  migrateLegacyBestScore();
+  return Number(window.localStorage.getItem(bestScoreKey(userId)) ?? 0);
+}
+
+function saveLocalBestScore(score: number, userId: string | null) {
+  if (typeof window === "undefined") return;
+  migrateLegacyBestScore();
+  const current = readLocalBestScore(userId);
+  if (score > current) {
+    window.localStorage.setItem(bestScoreKey(userId), String(score));
+  }
+}
+
 export async function saveQuizAttempt(category: string, score: number, totalQuestions: number) {
-  saveBestQuizScore(score);
   const userId = await getUserId();
+  saveLocalBestScore(score, userId);
   if (!userId) return;
 
   const supabase = createClient();
@@ -80,8 +108,8 @@ export async function saveQuizAttempt(category: string, score: number, totalQues
 }
 
 export async function getBestQuizScore() {
-  const localScore = Number(window.localStorage.getItem("cham_best_quiz_score") ?? 0);
   const userId = await getUserId();
+  const localScore = readLocalBestScore(userId);
   if (!userId) return localScore;
 
   const supabase = createClient();

@@ -3,12 +3,13 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import * as Dialog from "@radix-ui/react-dialog";
-import { Bookmark, CheckCircle2, ImageIcon, Loader2, Search, Sparkles, X } from "lucide-react";
+import { CheckCircle2, ImageIcon, Loader2, Search, Sparkles, X } from "lucide-react";
 import { ModalNavigation } from "@/components/common/ModalNavigation";
 import { Button } from "@/components/ui/button";
 import { SafeVideo } from "@/components/ui/safe-video";
 import { vocabularyCourseData } from "@/data/vocabularyCourseData";
 import { vocabularyCourseTopics } from "@/data/vocabularyCourseTopics";
+import { readLearningState, toggleLearningItem } from "@/lib/authLearning";
 import { createClient, hasSupabaseEnv } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 
@@ -27,9 +28,6 @@ type VocabularyCourseItem = {
   gif_url?: string | null;
   thumbnail_url?: string | null;
 };
-
-const learnedKey = "cham_learned_signs";
-const favoriteKey = "cham_favorite_signs";
 
 type LocalLearningRecord = {
   id: string;
@@ -179,10 +177,8 @@ function MediaPreview({ item }: { item: VocabularyCourseItem }) {
 function VocabularyDetailModal({
   item,
   learned,
-  favorite,
   onClose,
   onLearned,
-  onFavorite,
   currentIndex,
   total,
   onPrevious,
@@ -190,10 +186,8 @@ function VocabularyDetailModal({
 }: {
   item: VocabularyCourseItem | null;
   learned: boolean;
-  favorite: boolean;
   onClose: () => void;
   onLearned: () => void;
-  onFavorite: () => void;
   currentIndex: number;
   total: number;
   onPrevious: () => void;
@@ -273,15 +267,11 @@ function VocabularyDetailModal({
                 Đóng góp hoặc bình luận trong Từ điển
               </Link>
 
-              <div className="grid gap-2 border-t border-blue-100 pt-3 dark:border-slate-700 sm:grid-cols-3">
+              <div className="grid gap-2 border-t border-blue-100 pt-3 dark:border-slate-700 sm:grid-cols-2">
                 <Button variant={learned ? "success" : "secondary"} onClick={onLearned} className="min-h-11 rounded-full text-sm" aria-label={learned ? "Bấm để gỡ đã học" : "Đánh dấu đã học"} title={learned ? "Bấm để gỡ đã học" : "Đánh dấu đã học"}>
                   <CheckCircle2 className="h-5 w-5" aria-hidden="true" />
                   {learned ? "Đã học" : "Đánh dấu đã học"}
-                </Button>
-                <Button variant={favorite ? "default" : "secondary"} onClick={onFavorite} className={cn("min-h-11 rounded-full text-sm", favorite ? "bg-amber-500 text-white hover:bg-amber-600" : "")} aria-label={favorite ? "Bấm để gỡ yêu thích" : "Lưu yêu thích"} title={favorite ? "Bấm để gỡ yêu thích" : "Lưu yêu thích"}>
-                  <Bookmark className={favorite ? "h-5 w-5 fill-current" : "h-5 w-5"} aria-hidden="true" />
-                  {favorite ? "Đã lưu yêu thích" : "Lưu yêu thích"}
-                </Button>
+                </Button>
                 <Dialog.Close asChild>
                   <Button variant="outline" className="min-h-11 rounded-full text-sm">Đóng</Button>
                 </Dialog.Close>
@@ -300,14 +290,18 @@ export default function VocabularyCoursePage() {
   const [items, setItems] = useState<VocabularyCourseItem[]>(vocabularyCourseData);
   const [activeTopic, setActiveTopic] = useState("all");
   const [query, setQuery] = useState("");
-  const [learned, setLearned] = useState<string[]>([]);
-  const [favorites, setFavorites] = useState<string[]>([]);
+  const [learned, setLearned] = useState<string[]>([]);
   const [selectedItem, setSelectedItem] = useState<VocabularyCourseItem | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    setLearned(readStorage(learnedKey));
-    setFavorites(readStorage(favoriteKey));
+    async function loadLearningState() {
+      const learnedState = await readLearningState("learned");
+      setLearned(learnedState.ids);
+    }
+
+    void loadLearningState();
+
     const topicParam = new URLSearchParams(window.location.search).get("topic");
     if (topicParam) {
       const matchedTopic = vocabularyCourseTopics.find((topic) => topic.slug === topicParam || slugifyTopic(topic.name) === topicParam);
@@ -366,16 +360,14 @@ export default function VocabularyCoursePage() {
     });
   }, [activeTopic, items, query]);
 
-function markLearned(item: VocabularyCourseItem) {
-    setLearned(toggleStorage(learnedKey, item, item.word_key || item.id));
+  async function markLearned(item: VocabularyCourseItem) {
+    const id = item.word_key || item.id;
+    const next = await toggleLearningItem("learned", makeVocabularyLearningRecord(item, id));
+    setLearned(next.ids);
   }
 
-  function saveFavorite(item: VocabularyCourseItem) {
-    setFavorites(toggleStorage(favoriteKey, item, item.id));
-  }
 
-  const selectedIsLearned = selectedItem ? hasVocabularyProgress(learned, selectedItem) : false;
-  const selectedIsFavorite = selectedItem ? hasVocabularyProgress(favorites, selectedItem) : false;
+  const selectedIsLearned = selectedItem ? hasVocabularyProgress(learned, selectedItem) : false;
   const selectedIndex = selectedItem
     ? filteredItems.findIndex((item) => getVocabularyIdentity(item) === getVocabularyIdentity(selectedItem))
     : -1;
@@ -447,7 +439,6 @@ function markLearned(item: VocabularyCourseItem) {
             <div className="grid grid-cols-[repeat(auto-fit,minmax(170px,1fr))] gap-3">
               {filteredItems.map((item, index) => {
                 const itemLearned = hasVocabularyProgress(learned, item);
-                const itemFavorite = hasVocabularyProgress(favorites, item);
 
                 return (
                   <article
@@ -461,13 +452,11 @@ function markLearned(item: VocabularyCourseItem) {
                       itemLearned
                         ? "border-emerald-300 bg-emerald-50/70 shadow-emerald-100/70 hover:border-emerald-400 dark:border-emerald-500/50 dark:bg-emerald-500/10"
                         : "border-blue-100 shadow-blue-100/40 hover:border-blue-300 dark:border-slate-700",
-                      itemFavorite && !itemLearned ? "border-amber-200 bg-amber-50/50 shadow-amber-100/60 dark:border-amber-500/40 dark:bg-amber-500/10" : "",
                     )}
                   >
                     <div>
                       <div className="mb-2 flex flex-wrap gap-1.5">
-                        {itemLearned ? <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-black text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-100">Đã học</span> : null}
-                        {itemFavorite ? <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-black text-amber-800 dark:bg-amber-500/20 dark:text-amber-100">Đã lưu</span> : null}
+                        {itemLearned ? <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-black text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-100">Đã học</span> : null}
                       </div>
                       <p className="line-clamp-2 min-h-[2.5rem] text-base font-black leading-5 text-slate-950 dark:text-white">{item.word}</p>
                       <p className="mt-1.5 w-fit rounded-full bg-blue-50 px-2.5 py-0.5 text-[11px] font-black text-blue-700 dark:bg-blue-500/15 dark:text-blue-100">{item.category}</p>
@@ -479,10 +468,7 @@ function markLearned(item: VocabularyCourseItem) {
                       <Button type="button" size="sm" variant={itemLearned ? "success" : "secondary"} onClick={(event) => { event.stopPropagation(); markLearned(item); }} className="min-h-9 flex-1 rounded-full px-2 text-xs" aria-label={itemLearned ? `Bấm để gỡ đã học ${item.word}` : `Đánh dấu đã học ${item.word}`} title={itemLearned ? "Bấm để gỡ đã học" : "Đánh dấu đã học"}>
                         <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
                         {itemLearned ? "Đã học" : "Học"}
-                      </Button>
-                      <Button type="button" size="sm" variant={itemFavorite ? "default" : "secondary"} onClick={(event) => { event.stopPropagation(); saveFavorite(item); }} className={cn("min-h-9 w-10 rounded-full px-0", itemFavorite ? "bg-amber-500 text-white hover:bg-amber-600" : "")} aria-label={itemFavorite ? `Bấm để gỡ yêu thích ${item.word}` : `Lưu yêu thích ${item.word}`} title={itemFavorite ? "Bấm để gỡ yêu thích" : "Lưu yêu thích"}>
-                        <Bookmark className={itemFavorite ? "h-4 w-4 fill-current" : "h-4 w-4"} aria-hidden="true" />
-                      </Button>
+                      </Button>
                     </div>
                   </article>
                 );
@@ -494,11 +480,9 @@ function markLearned(item: VocabularyCourseItem) {
 
       <VocabularyDetailModal
         item={selectedItem}
-        learned={selectedIsLearned}
-        favorite={selectedIsFavorite}
+        learned={selectedIsLearned}
         onClose={() => setSelectedItem(null)}
-        onLearned={() => selectedItem && markLearned(selectedItem)}
-        onFavorite={() => selectedItem && saveFavorite(selectedItem)}
+        onLearned={() => selectedItem && markLearned(selectedItem)}
         currentIndex={selectedIndex}
         total={filteredItems.length}
         onPrevious={() => selectByIndex(selectedIndex - 1)}
