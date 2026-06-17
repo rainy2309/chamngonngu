@@ -11,6 +11,7 @@ import { readLearningState, saveLearningItemForCurrentUser, toggleLearningItem }
 import { createClient, hasSupabaseEnv } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import { normalizeLetterKey } from "@/lib/videoUtils";
+import { hasCanonicalLearningProgress } from "@/lib/progressDisplay";
 
 type BoardAlphabetItem = AlphabetSignItem & {
   media_id?: string | null;
@@ -247,7 +248,7 @@ function getAlphabetProgressKeys(item: BoardAlphabetItem) {
 
 function hasAlphabetProgress(ids: string[], item: BoardAlphabetItem) {
   const keys = getAlphabetProgressKeys(item);
-  return ids.some((id) => keys.includes(id));
+  return ids.some((id) => keys.includes(id)) || hasCanonicalLearningProgress(ids, { id: item.letter_key, label: item.display_label });
 }
 
 function getBoardItemId(letterKey: string) {

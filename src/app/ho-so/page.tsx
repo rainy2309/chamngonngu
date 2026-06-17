@@ -11,7 +11,7 @@ import { createClient, hasSupabaseEnv, missingEnvMessage } from "@/lib/supabase/
 import { getBestQuizScore } from "@/lib/quiz";
 import { readLearningState } from "@/lib/authLearning";
 import type { StoredLearningItem } from "@/lib/localLearning";
-import { addDictionaryProgressItems, getProgressDisplayInfo, isUuidLike } from "@/lib/progressDisplay";
+import { addDictionaryProgressItems, dedupeLearningItemsByCanonical, getProgressDisplayInfo, isUuidLike } from "@/lib/progressDisplay";
 import { readPracticeStats, type PracticeStats } from "@/lib/practiceStats";
 
 const roleLabels: Record<string, string> = {
@@ -256,7 +256,7 @@ export default function ProfilePage() {
           readLearningState("learned"),
           readLearningState("learnedAlphabet"),
         ]);
-        initialLearned = mergeStoredItems([...learnedState.items, ...learnedAlphabetState.items]);
+        initialLearned = dedupeLearningItemsByCanonical(mergeStoredItems([...learnedState.items, ...learnedAlphabetState.items]));
 
         setLearnedSigns(initialLearned);
         setBestScore(await getBestQuizScore());
@@ -320,7 +320,8 @@ export default function ProfilePage() {
 
           if (matchingRows.length) {
             addDictionaryProgressItems(matchingRows);
-            setLearnedSigns([...initialLearned]);
+            initialLearned = dedupeLearningItemsByCanonical(initialLearned);
+            setLearnedSigns(initialLearned);
           }
         } catch (error) {
           if (process.env.NODE_ENV === "development") {

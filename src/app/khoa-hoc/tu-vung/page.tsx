@@ -12,6 +12,7 @@ import { vocabularyCourseTopics } from "@/data/vocabularyCourseTopics";
 import { readLearningState, toggleLearningItem } from "@/lib/authLearning";
 import { createClient, hasSupabaseEnv } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
+import { addDictionaryProgressItems, hasCanonicalLearningProgress } from "@/lib/progressDisplay";
 
 type VocabularyCourseItem = {
   id: string;
@@ -112,8 +113,9 @@ function getVocabularyProgressKeys(item: VocabularyCourseItem) {
 }
 
 function hasVocabularyProgress(ids: string[], item: VocabularyCourseItem) {
+  const record = makeVocabularyLearningRecord(item, item.word_key || item.id);
   const keys = getVocabularyProgressKeys(item);
-  return ids.some((id) => keys.includes(id));
+  return ids.some((id) => keys.includes(id)) || hasCanonicalLearningProgress(ids, record);
 }
 
 function slugifyTopic(value: string) {
@@ -330,6 +332,14 @@ export default function VocabularyCoursePage() {
 
         if (error) throw error;
         if (data && data.length > 0) {
+          addDictionaryProgressItems(
+            data.map((row: any) => ({
+              id: row.id,
+              word: row.word,
+              word_key: row.word_key,
+              category: row.category,
+            })),
+          );
           setItems(data as VocabularyCourseItem[]);
         } else {
           setItems(vocabularyCourseData);

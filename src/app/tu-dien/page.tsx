@@ -18,6 +18,7 @@ import { readLearningState, toggleLearningItem } from "@/lib/authLearning";
 import { createClient, hasSupabaseEnv } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import { getVietnameseFirstLetter, groupDictionaryByLetter, normalizeVietnameseText, vietnameseAlphabet } from "@/lib/vietnameseText";
+import { addDictionaryProgressItems, hasCanonicalLearningProgress } from "@/lib/progressDisplay";
 
 const difficultyLabels = {
   easy: "Dễ",
@@ -237,6 +238,15 @@ function DictionaryContent() {
             sourceUrl: row.source_url || undefined,
             relatedWords: Array.isArray(row.related_words) ? row.related_words : [],
           }));
+          addDictionaryProgressItems(
+            data.map((row: any) => ({
+              id: row.id,
+              word: row.word,
+              word_key: row.word_key,
+              normalized_word: row.normalized_word,
+              category: row.category,
+            })),
+          );
           setDictWords(mapped);
         } else {
           setDictWords(signDictionaryData);
@@ -282,7 +292,7 @@ function DictionaryContent() {
   }, [activeLetter, baseFiltered]);
 
   const grouped = useMemo(() => groupDictionaryByLetter(filtered), [filtered]);
-  const selectedIsLearned = selected ? learnedIds.includes(selected.id) : false;
+  const selectedIsLearned = selected ? hasCanonicalLearningProgress(learnedIds, makeDictionaryLearningRecord(selected)) : false;
 
   useEffect(() => {
     if (activeLetter !== "Tất cả" && !availableLetters.has(activeLetter)) {
@@ -378,7 +388,7 @@ function DictionaryContent() {
                   </h2>
                   <div className="grid grid-cols-[repeat(auto-fit,minmax(180px,1fr))] gap-3">
                     {group.items.map((item) => (
-                      <DictionaryCard key={item.id} item={item} learned={learnedIds.includes(item.id)} onOpen={() => setSelected(item)} />
+                      <DictionaryCard key={item.id} item={item} learned={hasCanonicalLearningProgress(learnedIds, makeDictionaryLearningRecord(item))} onOpen={() => setSelected(item)} />
                     ))}
                   </div>
                 </section>
