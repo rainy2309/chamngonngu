@@ -480,7 +480,7 @@ function MediaRenderer({ item }: { item: SignDictionaryItem }) {
           poster={item.thumbnailUrl ?? undefined}
           className="h-full w-full object-contain"
           controls
-          preload="metadata"
+          preload="auto"
           playsInline
         />
       </div>

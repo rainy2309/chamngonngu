@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-import { AlertCircle, RotateCcw } from "lucide-react";
+import { AlertCircle, RotateCcw, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface SafeVideoProps extends React.VideoHTMLAttributes<HTMLVideoElement> {
@@ -22,12 +22,14 @@ export function SafeVideo({
 }: SafeVideoProps) {
   const [hasError, setHasError] = useState(false);
   const [errorDetails, setErrorDetails] = useState<string>("");
+  const [isLoading, setIsLoading] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
 
-  // Reset error state when src changes
+  // Reset state when src changes
   useEffect(() => {
     setHasError(false);
     setErrorDetails("");
+    setIsLoading(false);
   }, [src]);
 
   async function handleVideoError() {
@@ -144,18 +146,35 @@ export function SafeVideo({
   }
 
   return (
-    <video
-      ref={videoRef}
-      src={src}
-      poster={poster}
-      controls={controls}
-      preload={preload}
-      playsInline={playsInline}
-      onError={handleVideoError}
-      className={className}
-      {...props}
-    >
-      {fallbackText || "Trình duyệt của bạn không hỗ trợ phát video."}
-    </video>
+    <div className={`relative flex items-center justify-center bg-slate-950 overflow-hidden ${className}`}>
+      <video
+        ref={videoRef}
+        src={src}
+        poster={poster}
+        controls={controls}
+        preload={preload}
+        playsInline={playsInline}
+        onError={handleVideoError}
+        onLoadStart={() => setIsLoading(true)}
+        onCanPlay={() => setIsLoading(false)}
+        onWaiting={() => setIsLoading(true)}
+        onPlaying={() => setIsLoading(false)}
+        onSeeking={() => setIsLoading(true)}
+        onSeeked={() => setIsLoading(false)}
+        className="w-full h-full object-contain"
+        {...props}
+      >
+        {fallbackText || "Trình duyệt của bạn không hỗ trợ phát video."}
+      </video>
+
+      {isLoading && !hasError && (
+        <div className="absolute inset-0 flex items-center justify-center bg-slate-950/40 backdrop-blur-[1px] pointer-events-none transition-opacity duration-300">
+          <div className="flex flex-col items-center gap-1 rounded-xl bg-slate-900/80 px-3 py-2 shadow-md">
+            <Loader2 className="h-5 w-5 animate-spin text-blue-500" />
+            <span className="text-[10px] font-bold text-slate-300 uppercase tracking-wider">Đang tải...</span>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

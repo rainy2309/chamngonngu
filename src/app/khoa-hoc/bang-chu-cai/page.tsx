@@ -130,7 +130,7 @@ function DetailMediaBox({ item }: { item: BoardAlphabetItem }) {
           src={item.video_url}
           poster={item.thumbnail_url ?? undefined}
           controls
-          preload="metadata"
+          preload="auto"
           playsInline
           className="max-h-[260px] w-full rounded-xl object-contain sm:max-h-[320px] lg:max-h-[360px]"
         />

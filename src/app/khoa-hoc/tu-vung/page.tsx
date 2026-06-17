@@ -135,7 +135,7 @@ function MediaPreview({ item }: { item: VocabularyCourseItem }) {
           src={item.video_url}
           poster={item.thumbnail_url ?? undefined}
           controls
-          preload="metadata"
+          preload="auto"
           playsInline
           className="h-full w-full object-contain"
         />
