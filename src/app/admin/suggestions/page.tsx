@@ -8,6 +8,7 @@ import { SafeVideo } from "@/components/ui/safe-video";
 import { createClient, hasSupabaseEnv } from "@/lib/supabase/client";
 import { getVietnameseFirstLetter, normalizeVietnameseText } from "@/lib/vietnameseText";
 import { signCategories } from "@/data/signDictionaryData";
+import { normalizeVocabularyTopic } from "@/data/vocabularyCourseTopics";
 
 type WordSuggestion = {
   id: string;
@@ -75,7 +76,7 @@ export default function AdminSuggestionsPage() {
   function startEdit(s: WordSuggestion) {
     setEditingId(s.id);
     setEditTerm(s.term);
-    setEditCategory(s.category);
+    setEditCategory(normalizeVocabularyTopic(s.category));
     setEditRegion(s.region);
     setEditDifficulty(s.difficulty);
     setEditMeaning(s.meaning || "");
@@ -101,7 +102,7 @@ export default function AdminSuggestionsPage() {
         .update({
           term: editTerm.trim(),
           normalized_term: normalizedInput,
-          category: editCategory,
+          category: normalizeVocabularyTopic(editCategory),
           region: editRegion,
           difficulty: editDifficulty,
           meaning: editMeaning.trim() || null,
@@ -121,7 +122,7 @@ export default function AdminSuggestionsPage() {
                 ...s,
                 term: editTerm.trim(),
                 normalized_term: normalizedInput,
-                category: editCategory,
+                category: normalizeVocabularyTopic(editCategory),
                 region: editRegion,
                 difficulty: editDifficulty,
                 meaning: editMeaning.trim() || null,
@@ -160,7 +161,7 @@ export default function AdminSuggestionsPage() {
         first_letter: getVietnameseFirstLetter(s.term),
         meaning: s.meaning || "",
         simple_explanation: s.simple_explanation || null,
-        category: s.category,
+        category: normalizeVocabularyTopic(s.category),
         region: s.region,
         difficulty: s.difficulty,
         example_sentence: s.example || "",

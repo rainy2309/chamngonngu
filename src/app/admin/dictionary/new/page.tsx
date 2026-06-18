@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { createClient } from "@/lib/supabase/client";
 import { normalizeVietnameseText, getVietnameseFirstLetter } from "@/lib/vietnameseText";
 import { signCategories, signRegions } from "@/data/signDictionaryData";
+import { normalizeVocabularyTopic } from "@/data/vocabularyCourseTopics";
 import { VideoUploader } from "@/components/admin/VideoUploader";
 
 export default function AdminNewWordPage() {
@@ -45,7 +46,7 @@ export default function AdminNewWordPage() {
         first_letter: getVietnameseFirstLetter(word.trim()),
         meaning: meaning.trim(),
         simple_explanation: simpleExplanation.trim() || null,
-        category,
+        category: normalizeVocabularyTopic(category),
         region,
         difficulty,
         example_sentence: exampleSentence.trim(),
@@ -62,6 +63,7 @@ export default function AdminNewWordPage() {
           .filter(Boolean),
         source_name: "Admin CHẠM",
         is_verified: true,
+        status: "published",
       });
 
       if (error) {
