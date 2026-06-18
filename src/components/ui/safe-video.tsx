@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
-import { AlertCircle, RotateCcw } from "lucide-react";
+import React, { useState, useRef, useEffect } from "react";
+import { AlertCircle, RotateCcw, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -22,12 +22,12 @@ export function SafeVideo({
   ...props
 }: SafeVideoProps) {
   const [hasError, setHasError] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
     setHasError(false);
-    setIsLoading(true);
+    setIsLoading(false);
   }, [src]);
 
   function handleVideoError() {
@@ -90,20 +90,27 @@ export function SafeVideo({
         controls={controls}
         preload={preload}
         playsInline={playsInline}
-        onLoadStart={() => setIsLoading(true)}
-        onLoadedMetadata={() => setIsLoading(false)}
-        onCanPlay={() => setIsLoading(false)}
         onError={handleVideoError}
+        onLoadStart={() => setIsLoading(true)}
+        onCanPlay={() => setIsLoading(false)}
+        onWaiting={() => setIsLoading(true)}
+        onPlaying={() => setIsLoading(false)}
+        onSeeking={() => setIsLoading(true)}
+        onSeeked={() => setIsLoading(false)}
         className="h-full w-full object-contain"
         {...props}
       >
         {fallbackText || "Trình duyệt của bạn không hỗ trợ phát video."}
       </video>
-      {isLoading ? (
-        <div className="pointer-events-none absolute inset-0 grid place-items-center bg-slate-950/70 text-sm font-black text-white">
-          Đang tải video...
+
+      {isLoading && !hasError && (
+        <div className="absolute inset-0 flex items-center justify-center bg-slate-950/40 backdrop-blur-[1px] pointer-events-none transition-opacity duration-300">
+          <div className="flex flex-col items-center gap-1 rounded-xl bg-slate-900/80 px-3 py-2 shadow-md">
+            <Loader2 className="h-5 w-5 animate-spin text-blue-500" />
+            <span className="text-[10px] font-bold text-slate-300 uppercase tracking-wider">Đang tải...</span>
+          </div>
         </div>
-      ) : null}
+      )}
     </div>
   );
 }

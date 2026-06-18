@@ -160,6 +160,7 @@ function MediaPreview({ item }: { item: VocabularyCourseItem }) {
       <div className="flex h-[170px] w-full items-center justify-center overflow-hidden rounded-2xl bg-slate-950 sm:h-[200px] lg:h-[220px]">
         <SafeVideo
           src={item.video_url}
+          poster={item.thumbnail_url ?? undefined}
           controls
           preload="metadata"
           playsInline
@@ -174,6 +175,15 @@ function MediaPreview({ item }: { item: VocabularyCourseItem }) {
       <div className="flex h-[170px] w-full items-center justify-center overflow-hidden rounded-2xl bg-blue-50 dark:bg-slate-800 sm:h-[200px] lg:h-[220px]">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={item.gif_url} alt={`GIF minh họa ${item.word}`} className="h-full w-full object-contain" onError={() => setFailed(true)} />
+      </div>
+    );
+  }
+
+  if (item.thumbnail_url && !failed) {
+    return (
+      <div className="flex h-[170px] w-full items-center justify-center overflow-hidden rounded-2xl bg-blue-50 dark:bg-slate-800 sm:h-[200px] lg:h-[220px]">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={item.thumbnail_url} alt={`Ảnh minh họa ${item.word}`} className="h-full w-full object-contain" onError={() => setFailed(true)} />
       </div>
     );
   }

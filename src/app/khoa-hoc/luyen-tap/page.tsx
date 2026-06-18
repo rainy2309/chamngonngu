@@ -127,7 +127,7 @@ function MediaQuestion({ item }: { item: PracticeItem }) {
   if (item.mediaUrl && item.mediaKind === "video") {
     return (
       <div className="flex h-[220px] w-full items-center justify-center overflow-hidden rounded-[1.5rem] bg-slate-950 sm:h-[300px]">
-        <SafeVideo src={item.mediaUrl} controls preload="metadata" playsInline className="h-full w-full object-contain" />
+        <SafeVideo src={item.mediaUrl} controls preload="auto" playsInline className="h-full w-full object-contain" />
       </div>
     );
   }

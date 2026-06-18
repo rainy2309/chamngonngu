@@ -153,6 +153,7 @@ async function saveViewedCourse() {
   await saveLearningItemForCurrentUser("viewedLessons", { id: "bang-chu-cai", label: "Ký hiệu bảng chữ cái" });
 }
 
+
 function ImageBox({ item }: { item: AlphabetSignItem }) {
   const [failed, setFailed] = useState(false);
   const canShowImage = Boolean(item.image && !failed);
@@ -182,7 +183,7 @@ function DetailMediaBox({ item }: { item: BoardAlphabetItem }) {
           src={item.video_url}
           poster={item.thumbnail_url ?? undefined}
           controls
-          preload="metadata"
+          preload="auto"
           playsInline
           className="max-h-[260px] w-full rounded-xl object-contain sm:max-h-[320px] lg:max-h-[360px]"
         />
@@ -299,6 +300,7 @@ function BoardCell({ item, learned, onClick }: { item: BoardAlphabetItem; learne
 function getAlphabetProgressKeys(item: BoardAlphabetItem) {
   return [item.letter_key, item.id, item.label, item.display_label, `alphabet-${item.letter_key}`, `alphabet-${item.id}`].filter(Boolean);
 }
+
 
 function hasAlphabetProgress(ids: string[], item: BoardAlphabetItem) {
   const keys = getAlphabetProgressKeys(item);
