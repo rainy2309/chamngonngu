@@ -140,7 +140,6 @@ function hasVocabularyProgress(ids: string[], item: VocabularyCourseItem) {
   return ids.some((id) => keys.includes(id)) || hasCanonicalLearningProgress(ids, record);
 }
 
-
 function slugifyTopic(value: string) {
   return value
     .normalize("NFD")
@@ -163,7 +162,7 @@ function MediaPreview({ item }: { item: VocabularyCourseItem }) {
           src={item.video_url}
           poster={item.thumbnail_url ?? undefined}
           controls
-          preload="auto"
+          preload="metadata"
           playsInline
           className="h-full w-full object-contain"
         />
@@ -198,7 +197,6 @@ function MediaPreview({ item }: { item: VocabularyCourseItem }) {
     </div>
   );
 }
-
 
 function VocabularyDetailModal({
   item,
@@ -246,48 +244,18 @@ function VocabularyDetailModal({
               <div className="grid gap-4 lg:grid-cols-[0.38fr_0.62fr] lg:items-start">
                 <MediaPreview item={item} />
                 <div className="grid gap-3">
-                  <section className="rounded-2xl bg-slate-50 p-3 dark:bg-slate-800">
-                    <h3 className="font-black text-slate-950 dark:text-white">Ghi chú / mô tả</h3>
-                    <p className="mt-1.5 text-sm font-semibold leading-6 text-slate-600 dark:text-slate-300">{item.description || "Chưa có ghi chú riêng cho mục này."}</p>
-                  </section>
                   <section className="rounded-2xl bg-blue-50 p-3 dark:bg-blue-500/15">
-                    <h3 className="font-black text-slate-950 dark:text-white">Ý nghĩa</h3>
-                    <p className="mt-1.5 text-sm font-semibold leading-6 text-blue-900 dark:text-blue-100">{item.meaning || `Thuộc chủ đề ${item.category}, dùng trong giao tiếp ngôn ngữ ký hiệu.`}</p>
-                  </section>
-                  <section>
-                    <h3 className="font-black text-slate-950 dark:text-white">Giải thích đơn giản</h3>
-                    <p className="mt-1.5 text-sm font-semibold leading-6 text-slate-600 dark:text-slate-300">{item.simple_explanation || item.description}</p>
-                  </section>
-                  <section>
-                    <h3 className="font-black text-slate-950 dark:text-white">Ví dụ</h3>
-                    <p className="mt-1.5 text-sm font-semibold leading-6 text-slate-600 dark:text-slate-300">{item.example_sentence || `Em học ký hiệu cho cụm từ: ${item.word}.`}</p>
+                    <h3 className="font-black text-slate-950 dark:text-white">Các bước học</h3>
+                    <ul className="mt-2 grid gap-2">
+                      {(item.sign_steps?.length ? item.sign_steps : defaultSteps).map((step) => (
+                        <li key={step} className="break-words rounded-2xl bg-white px-3 py-2 text-sm font-semibold leading-6 text-blue-900 dark:bg-slate-900/70 dark:text-blue-100">
+                          {step}
+                        </li>
+                      ))}
+                    </ul>
                   </section>
                 </div>
               </div>
-
-              <section>
-                <h3 className="font-black text-slate-950 dark:text-white">Các bước học</h3>
-                <ul className="mt-2 grid gap-2">
-                  {(item.sign_steps?.length ? item.sign_steps : defaultSteps).map((step) => (
-                    <li key={step} className="break-words rounded-2xl bg-blue-50 px-3 py-2 text-sm font-semibold leading-6 text-blue-900 dark:bg-blue-500/15 dark:text-blue-100">
-                      {step}
-                    </li>
-                  ))}
-                </ul>
-              </section>
-
-              {item.tips?.length ? (
-                <section>
-                  <h3 className="font-black text-slate-950 dark:text-white">Lưu ý</h3>
-                  <ul className="mt-2 grid gap-2">
-                    {item.tips.map((tip) => (
-                      <li key={tip} className="break-words rounded-2xl bg-orange-50 px-3 py-2 text-sm font-semibold leading-6 text-orange-900 dark:bg-orange-500/15 dark:text-orange-100">
-                        {tip}
-                      </li>
-                    ))}
-                  </ul>
-                </section>
-              ) : null}
 
               <Link href={`/tu-dien?q=${encodeURIComponent(item.word)}`} className="w-fit rounded-full bg-blue-50 px-3 py-2 text-sm font-black text-blue-700 hover:bg-blue-100 dark:bg-blue-500/15 dark:text-blue-100">
                 Đóng góp hoặc bình luận trong Từ điển
@@ -513,7 +481,7 @@ export default function VocabularyCoursePage() {
                       <p className="line-clamp-2 min-h-[2.5rem] text-base font-black leading-5 text-slate-950 dark:text-white">{item.word}</p>
                       <p className="mt-1.5 w-fit rounded-full bg-blue-50 px-2.5 py-0.5 text-[11px] font-black text-blue-700 dark:bg-blue-500/15 dark:text-blue-100">{item.category}</p>
                       <p className="mt-2 line-clamp-2 text-xs font-semibold leading-5 text-slate-600 dark:text-slate-300">
-                        {item.simple_explanation || item.description || `Từ/cụm từ thường dùng trong chủ đề ${item.category}.`}
+                        {item.video_url ? "Có video minh họa" : item.gif_url ? "Có GIF minh họa" : "Chưa có minh họa"}
                       </p>
                     </div>
                     <div className="flex items-center gap-2">
