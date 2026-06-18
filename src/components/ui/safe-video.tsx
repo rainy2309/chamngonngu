@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from "react";
+import React, { useRef, useState } from "react";
 import { AlertCircle, RotateCcw, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -21,20 +21,16 @@ export function SafeVideo({
   playsInline = true,
   ...props
 }: SafeVideoProps) {
-  const [hasError, setHasError] = useState(false);
+  const [errorSource, setErrorSource] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
-
-  useEffect(() => {
-    setHasError(false);
-    setIsLoading(false);
-  }, [src]);
+  const hasError = errorSource === src;
 
   function handleVideoError() {
     const video = videoRef.current;
     const err = video?.error;
 
-    setHasError(true);
+    setErrorSource(src);
     setIsLoading(false);
 
     console.error("[SafeVideo Error Encountered]", {
@@ -47,7 +43,7 @@ export function SafeVideo({
   }
 
   function handleRetry() {
-    setHasError(false);
+    setErrorSource(null);
     setIsLoading(true);
 
     const video = videoRef.current;
@@ -91,7 +87,10 @@ export function SafeVideo({
         preload={preload}
         playsInline={playsInline}
         onError={handleVideoError}
-        onLoadStart={() => setIsLoading(true)}
+        onLoadStart={() => {
+          setErrorSource(null);
+          setIsLoading(true);
+        }}
         onCanPlay={() => setIsLoading(false)}
         onWaiting={() => setIsLoading(true)}
         onPlaying={() => setIsLoading(false)}
