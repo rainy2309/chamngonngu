@@ -8,6 +8,7 @@ import { SafeVideo } from "@/components/ui/safe-video";
 import { Card, CardContent } from "@/components/ui/card";
 import { alphabetSignData } from "@/data/alphabetSignData";
 import { vocabularyCourseData } from "@/data/vocabularyCourseData";
+import { normalizeVocabularyTopic, vocabularyCourseTopics } from "@/data/vocabularyCourseTopics";
 import { readLearningState, getCurrentUserId } from "@/lib/authLearning";
 import { readPracticeStats, savePracticeAttempt, type PracticeStats } from "@/lib/practiceStats";
 import { getProgressDisplayInfo } from "@/lib/progressDisplay";
@@ -36,7 +37,7 @@ type QuizQuestion = {
 };
 
 const questionCounts = [10, 20, 30];
-const topicOptions = ["Chào hỏi", "Gia đình", "Bạn bè", "Học tập", "Nghề nghiệp", "Cảm xúc", "Ăn uống", "Di chuyển", "Hỏi đáp", "Khẩn cấp"];
+const topicOptions = vocabularyCourseTopics.map((topic) => topic.name);
 
 function shuffle<T>(items: T[]) {
   return [...items].sort(() => Math.random() - 0.5);
@@ -81,7 +82,7 @@ function makeStaticVocabularyItems(): PracticeItem[] {
       id: item.id,
       keys: [item.id, item.word_key, normalizeVietnameseText(item.word), item.word].filter(Boolean),
       word: item.word,
-      category: item.category,
+      category: normalizeVocabularyTopic(item.category),
       description: item.simple_explanation || item.description,
       ...media,
     };
@@ -190,7 +191,7 @@ export default function PracticePage() {
           supabase
             .from("dictionary_words")
             .select("id, word_key, word, normalized_word, category, description, simple_explanation, video_url, gif_url, thumbnail_url")
-            .eq("status", "published"),
+            .in("status", ["published", "active"]),
           supabase
             .from("alphabet_media")
             .select("id, letter_key, label, display_label, type, title, description, explanation, video_url, gif_url, thumbnail_url, board_image_url, status, updated_at")
@@ -204,7 +205,7 @@ export default function PracticePage() {
           id: String(row.id),
           keys: [row.id, row.word_key, row.normalized_word, row.word].filter(Boolean).map(String),
           word: String(row.word ?? ""),
-          category: String(row.category ?? "Từ vựng"),
+          category: normalizeVocabularyTopic(String(row.category ?? "Từ vựng")),
           description: String(row.simple_explanation ?? row.description ?? ""),
           ...getMedia(row.video_url, row.gif_url, row.thumbnail_url),
         }));

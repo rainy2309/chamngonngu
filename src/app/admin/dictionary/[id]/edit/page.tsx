@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { createClient } from "@/lib/supabase/client";
 import { normalizeVietnameseText } from "@/lib/vietnameseText";
 import { signCategories, signRegions } from "@/data/signDictionaryData";
+import { normalizeVocabularyTopic } from "@/data/vocabularyCourseTopics";
 import { VideoUploader } from "@/components/admin/VideoUploader";
 
 export default function AdminEditWordPage({
@@ -49,7 +50,7 @@ export default function AdminEditWordPage({
           setWord(data.word);
           setMeaning(data.meaning);
           setSimpleExplanation(data.simple_explanation ?? "");
-          setCategory(data.category);
+          setCategory(normalizeVocabularyTopic(data.category));
           setRegion(data.region);
           setDifficulty(data.difficulty);
           setExampleSentence(data.example_sentence ?? "");
@@ -83,7 +84,7 @@ export default function AdminEditWordPage({
           normalized_word: normalized,
           meaning: meaning.trim(),
           simple_explanation: simpleExplanation.trim() || null,
-          category,
+          category: normalizeVocabularyTopic(category),
           region,
           difficulty,
           example_sentence: exampleSentence.trim(),

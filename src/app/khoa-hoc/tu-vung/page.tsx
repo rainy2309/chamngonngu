@@ -8,11 +8,12 @@ import { ModalNavigation } from "@/components/common/ModalNavigation";
 import { Button } from "@/components/ui/button";
 import { SafeVideo } from "@/components/ui/safe-video";
 import { vocabularyCourseData } from "@/data/vocabularyCourseData";
-import { vocabularyCourseTopics } from "@/data/vocabularyCourseTopics";
+import { getVocabularyTopicSortOrder, normalizeVocabularyTopic, vocabularyCourseTopics } from "@/data/vocabularyCourseTopics";
 import { readLearningState, toggleLearningItem } from "@/lib/authLearning";
 import { createClient, hasSupabaseEnv } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import { addDictionaryProgressItems, hasCanonicalLearningProgress } from "@/lib/progressDisplay";
+import { normalizeVietnameseText } from "@/lib/vietnameseText";
 
 type VocabularyCourseItem = {
   id: string;
@@ -28,6 +29,10 @@ type VocabularyCourseItem = {
   video_url?: string | null;
   gif_url?: string | null;
   thumbnail_url?: string | null;
+  status?: string | null;
+  is_verified?: boolean | null;
+  created_at?: string | null;
+  updated_at?: string | null;
 };
 
 type LocalLearningRecord = {
@@ -47,6 +52,23 @@ const defaultSteps = [
   "Giữ tay trong khung nhìn rõ.",
   "Thực hiện chậm và lặp lại 3-5 lần.",
 ];
+
+function normalizeVocabularyCourseItem<T extends VocabularyCourseItem>(item: T): T {
+  return {
+    ...item,
+    category: normalizeVocabularyTopic(item.category),
+  };
+}
+
+function sortVocabularyItems(items: VocabularyCourseItem[]) {
+  return [...items].sort((a, b) => {
+    const topicDiff = getVocabularyTopicSortOrder(a.category) - getVocabularyTopicSortOrder(b.category);
+    if (topicDiff !== 0) return topicDiff;
+    return a.word.localeCompare(b.word, "vi");
+  });
+}
+
+const fallbackVocabularyItems = sortVocabularyItems(vocabularyCourseData.map(normalizeVocabularyCourseItem));
 
 function getLocalEntryId(item: unknown) {
   if (typeof item === "string") return item;
@@ -289,7 +311,7 @@ function VocabularyDetailModal({
 }
 
 export default function VocabularyCoursePage() {
-  const [items, setItems] = useState<VocabularyCourseItem[]>(vocabularyCourseData);
+  const [items, setItems] = useState<VocabularyCourseItem[]>(fallbackVocabularyItems);
   const [activeTopic, setActiveTopic] = useState("all");
   const [query, setQuery] = useState("");
   const [learned, setLearned] = useState<string[]>([]);
@@ -310,12 +332,18 @@ export default function VocabularyCoursePage() {
       if (matchedTopic) {
         setActiveTopic(matchedTopic.name);
         window.setTimeout(() => document.getElementById("vocabulary-list")?.scrollIntoView({ behavior: "smooth", block: "start" }), 100);
+      } else {
+        const normalizedTopic = normalizeVocabularyTopic(topicParam);
+        if (vocabularyCourseTopics.some((topic) => topic.name === normalizedTopic)) {
+          setActiveTopic(normalizedTopic);
+          window.setTimeout(() => document.getElementById("vocabulary-list")?.scrollIntoView({ behavior: "smooth", block: "start" }), 100);
+        }
       }
     }
 
     async function loadVocabulary() {
       if (!hasSupabaseEnv()) {
-        setItems(vocabularyCourseData);
+        setItems(fallbackVocabularyItems);
         setLoading(false);
         return;
       }
@@ -324,29 +352,28 @@ export default function VocabularyCoursePage() {
         const supabase = createClient();
         const { data, error } = await supabase
           .from("dictionary_words")
-          .select("id, word_key, word, category, meaning, description, simple_explanation, example_sentence, sign_steps, video_url, gif_url, thumbnail_url")
-          .eq("status", "published")
-          .in("category", vocabularyCourseTopics.map((topic) => topic.name))
-          .order("category", { ascending: true })
-          .order("word", { ascending: true });
+          .select("id, word_key, word, category, meaning, description, simple_explanation, example_sentence, sign_steps, video_url, gif_url, thumbnail_url, status, is_verified, created_at, updated_at")
+          .in("status", ["published", "active"])
+          .order("updated_at", { ascending: false });
 
         if (error) throw error;
         if (data && data.length > 0) {
+          const normalizedRows = sortVocabularyItems((data as VocabularyCourseItem[]).map(normalizeVocabularyCourseItem));
           addDictionaryProgressItems(
-            data.map((row: any) => ({
+            normalizedRows.map((row) => ({
               id: row.id,
               word: row.word,
               word_key: row.word_key,
               category: row.category,
             })),
           );
-          setItems(data as VocabularyCourseItem[]);
+          setItems(normalizedRows);
         } else {
-          setItems(vocabularyCourseData);
+          setItems(fallbackVocabularyItems);
         }
       } catch (error) {
         console.error("Vocabulary course load error:", error);
-        setItems(vocabularyCourseData);
+        setItems(fallbackVocabularyItems);
       } finally {
         setLoading(false);
       }
@@ -362,10 +389,20 @@ export default function VocabularyCoursePage() {
   }, [items]);
 
   const filteredItems = useMemo(() => {
-    const normalizedQuery = query.trim().toLowerCase();
+    const normalizedQuery = normalizeVietnameseText(query);
     return items.filter((item) => {
       const matchesTopic = activeTopic === "all" || item.category === activeTopic;
-      const searchable = [item.word, item.category, item.description, item.simple_explanation, item.meaning].join(" ").toLowerCase();
+      const searchable = normalizeVietnameseText(
+        [
+          item.word,
+          item.word_key,
+          item.category,
+          item.description,
+          item.simple_explanation,
+          item.meaning,
+          item.example_sentence,
+        ].join(" "),
+      );
       return matchesTopic && (!normalizedQuery || searchable.includes(normalizedQuery));
     });
   }, [activeTopic, items, query]);
@@ -407,7 +444,7 @@ export default function VocabularyCoursePage() {
               <p className="text-xs font-black uppercase">mục từ vựng</p>
             </div>
             <div className="rounded-3xl bg-emerald-50 px-5 py-4 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-100">
-              <p className="text-2xl font-black">10</p>
+              <p className="text-2xl font-black">{vocabularyCourseTopics.length}</p>
               <p className="text-xs font-black uppercase">chủ đề</p>
             </div>
           </div>
@@ -431,6 +468,9 @@ export default function VocabularyCoursePage() {
             {vocabularyCourseTopics.map((topic) => (
               <button key={topic.slug} type="button" onClick={() => setActiveTopic(topic.name)} className={`min-h-11 shrink-0 whitespace-nowrap rounded-full px-4 text-sm font-black ${activeTopic === topic.name ? "bg-blue-700 text-white" : "bg-blue-50 text-blue-800 dark:bg-slate-800 dark:text-blue-100"}`}>
                 {topic.name}
+                <span className="ml-1.5 rounded-full bg-white/70 px-1.5 py-0.5 text-[10px] text-blue-700 dark:bg-slate-950/40 dark:text-blue-100">
+                  {topicCounts.get(topic.name) ?? 0}
+                </span>
               </button>
             ))}
           </div>
