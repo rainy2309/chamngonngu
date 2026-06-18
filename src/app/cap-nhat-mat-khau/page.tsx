@@ -6,7 +6,7 @@ import { AlertCircle, CheckCircle2, KeyRound } from "lucide-react";
 import { ChamLogo } from "@/components/common/ChamLogo";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { createClient, missingEnvMessage } from "@/lib/supabase/client";
 
 const invalidRecoveryMessage =
@@ -156,11 +156,11 @@ export default function UpdatePasswordPage() {
             <form className="grid gap-4" onSubmit={updatePassword}>
               <label className="grid gap-2">
                 <span className="font-bold text-slate-800 dark:text-slate-100">Mật khẩu mới</span>
-                <Input type="password" value={password} onChange={(event) => setPassword(event.target.value)} required autoComplete="new-password" />
+                <PasswordInput value={password} onChange={(event) => setPassword(event.target.value)} required autoComplete="new-password" />
               </label>
               <label className="grid gap-2">
                 <span className="font-bold text-slate-800 dark:text-slate-100">Nhập lại mật khẩu</span>
-                <Input type="password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} required autoComplete="new-password" />
+                <PasswordInput value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} required autoComplete="new-password" />
               </label>
               {message ? (
                 <p

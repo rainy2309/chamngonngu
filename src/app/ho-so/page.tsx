@@ -7,6 +7,7 @@ import { ArrowRight, Award, CheckCircle2, KeyRound, Save, Search, Sparkles, X } 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { createClient, hasSupabaseEnv, missingEnvMessage } from "@/lib/supabase/client";
 import { getBestQuizScore } from "@/lib/quiz";
 import { readLearningState } from "@/lib/authLearning";
@@ -575,8 +576,7 @@ export default function ProfilePage() {
                     <div className="grid gap-3 md:grid-cols-2">
                       <label className="grid gap-2">
                         <span className="font-bold text-slate-800">Mật khẩu mới</span>
-                        <Input
-                          type="password"
+                        <PasswordInput
                           value={accountPassword}
                           onChange={(event) => setAccountPassword(event.target.value)}
                           autoComplete="new-password"
@@ -584,8 +584,7 @@ export default function ProfilePage() {
                       </label>
                       <label className="grid gap-2">
                         <span className="font-bold text-slate-800">Nhập lại mật khẩu</span>
-                        <Input
-                          type="password"
+                        <PasswordInput
                           value={confirmAccountPassword}
                           onChange={(event) => setConfirmAccountPassword(event.target.value)}
                           autoComplete="new-password"

@@ -8,6 +8,7 @@ import { ChamLogo } from "@/components/common/ChamLogo";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { googleLoginErrorMessage, signInWithGoogle } from "@/lib/auth";
 import { createClient, missingEnvMessage } from "@/lib/supabase/client";
 
@@ -106,7 +107,7 @@ export default function LoginPage() {
             </label>
             <label className="grid gap-2">
               <span className="font-bold text-slate-800">Mật khẩu</span>
-              <Input type="password" value={password} onChange={(event) => setPassword(event.target.value)} required autoComplete="current-password" />
+              <PasswordInput value={password} onChange={(event) => setPassword(event.target.value)} required autoComplete="current-password" />
             </label>
             <div className="-mt-1 text-right">
               <Link href="/dat-lai-mat-khau" className="text-sm font-bold text-blue-700 hover:text-blue-900">

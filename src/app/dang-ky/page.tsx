@@ -8,6 +8,7 @@ import { ChamLogo } from "@/components/common/ChamLogo";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { getSiteUrl, signInWithGoogle } from "@/lib/auth";
 import { createClient, missingEnvMessage } from "@/lib/supabase/client";
 
@@ -138,11 +139,11 @@ export default function RegisterPage() {
             </label>
             <label className="grid gap-2">
               <span className="font-bold text-slate-800">Mật khẩu</span>
-              <Input type="password" value={password} onChange={(event) => setPassword(event.target.value)} required autoComplete="new-password" />
+              <PasswordInput value={password} onChange={(event) => setPassword(event.target.value)} required autoComplete="new-password" />
             </label>
             <label className="grid gap-2">
               <span className="font-bold text-slate-800">Nhập lại mật khẩu</span>
-              <Input type="password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} required autoComplete="new-password" />
+              <PasswordInput value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} required autoComplete="new-password" />
             </label>
             {/* Role mặc định là 'user', không cho người dùng tự chọn */}
             {message ? <p className="rounded-2xl bg-blue-50 p-3 font-semibold text-blue-900">{message}</p> : null}
