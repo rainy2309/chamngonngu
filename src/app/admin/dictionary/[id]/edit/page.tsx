@@ -114,7 +114,7 @@ export default function AdminEditWordPage({
           category: normalizeVocabularyTopic(category),
           region,
           difficulty,
-          example_sentence: exampleSentence.trim() || null,
+          example_sentence: exampleSentence.trim() || "",
           description: description.trim() || null,
           sign_steps: splitLines(signStepsText),
           video_url: videoUrl.trim() || null,
