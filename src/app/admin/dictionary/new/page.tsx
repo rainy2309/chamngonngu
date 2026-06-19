@@ -98,7 +98,7 @@ export default function AdminNewWordPage() {
         category: normalizeVocabularyTopic(category),
         region,
         difficulty,
-        example_sentence: exampleSentence.trim() || null,
+        example_sentence: exampleSentence.trim() || "",
         description: description.trim() || null,
         sign_steps: steps.length ? steps : defaultSignSteps,
         video_url: videoUrl.trim() || null,
