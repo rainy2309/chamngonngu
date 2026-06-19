@@ -6,15 +6,21 @@ import { LogOut, UserRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { mergeGuestLearningIntoUser, migrateLegacyLearningKeys } from "@/lib/authLearning";
 import { createClient, hasSupabaseEnv } from "@/lib/supabase/client";
+import { cn } from "@/lib/utils";
 
 type AuthUser = {
   email: string | null;
   name: string | null;
 };
 
-export function AuthNav() {
+type AuthNavProps = {
+  variant?: "default" | "compact";
+};
+
+export function AuthNav({ variant = "default" }: AuthNavProps) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [message, setMessage] = useState("");
+  const compact = variant === "compact";
 
   useEffect(() => {
     if (!hasSupabaseEnv()) return;
@@ -63,29 +69,29 @@ export function AuthNav() {
 
   if (user) {
     return (
-      <div className="flex w-full shrink-0 flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
-        <span className="hidden max-w-40 truncate whitespace-nowrap text-sm font-bold text-slate-600 xl:inline">{user.name || user.email}</span>
-        <Button asChild variant="secondary" size="sm" className="w-full whitespace-nowrap sm:w-auto">
+      <div className={cn("flex shrink-0 gap-2", compact ? "items-center" : "w-full flex-col sm:w-auto sm:flex-row sm:items-center")}>
+        <span className={cn("max-w-40 truncate whitespace-nowrap text-sm font-bold text-slate-600 dark:text-slate-300", compact ? "hidden" : "hidden xl:inline")}>{user.name || user.email}</span>
+        <Button asChild variant="secondary" size="sm" className={cn("whitespace-nowrap", compact ? "h-10 rounded-full px-3 text-xs" : "w-full sm:w-auto")}>
           <Link href="/ho-so">
             <UserRound className="h-4 w-4" aria-hidden="true" />
             Hồ sơ
           </Link>
         </Button>
-        <Button variant="outline" size="sm" onClick={logout} className="w-full whitespace-nowrap sm:w-auto">
+        <Button variant="outline" size="sm" onClick={logout} className={cn("whitespace-nowrap", compact ? "hidden" : "w-full sm:w-auto")}>
           <LogOut className="h-4 w-4" aria-hidden="true" />
           Đăng xuất
         </Button>
-        {message ? <span className="text-xs font-bold text-orange-700 sm:max-w-44">{message}</span> : null}
+        {message && !compact ? <span className="text-xs font-bold text-orange-700 sm:max-w-44">{message}</span> : null}
       </div>
     );
   }
 
   return (
-    <div className="flex w-full shrink-0 flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
-      <Button asChild variant="secondary" size="sm" className="w-full whitespace-nowrap sm:w-auto">
+    <div className={cn("flex shrink-0 gap-2", compact ? "items-center" : "w-full flex-col sm:w-auto sm:flex-row sm:items-center")}>
+      <Button asChild variant="secondary" size="sm" className={cn("whitespace-nowrap", compact ? "h-10 rounded-full px-3 text-xs" : "w-full sm:w-auto")}>
         <Link href="/dang-nhap">Đăng nhập</Link>
       </Button>
-      <Button asChild size="sm" className="w-full whitespace-nowrap sm:w-auto">
+      <Button asChild size="sm" className={cn("whitespace-nowrap", compact ? "hidden" : "w-full sm:w-auto")}>
         <Link href="/dang-ky">Đăng ký</Link>
       </Button>
     </div>

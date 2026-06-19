@@ -105,15 +105,18 @@ export function Navbar() {
           <AuthNav />
         </div>
 
-        <button
-          type="button"
-          onClick={() => setOpen((current) => !current)}
-          className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-blue-50 text-blue-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100 dark:bg-slate-800 dark:text-blue-200 lg:hidden"
-          aria-label={open ? "Đóng menu" : "Mở menu"}
-          aria-expanded={open}
-        >
-          {open ? <X className="h-5 w-5" aria-hidden="true" /> : <Menu className="h-5 w-5" aria-hidden="true" />}
-        </button>
+        <div className="flex shrink-0 items-center gap-2 lg:hidden">
+          <AuthNav variant="compact" />
+          <button
+            type="button"
+            onClick={() => setOpen((current) => !current)}
+            className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-blue-50 text-blue-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100 dark:bg-slate-800 dark:text-blue-200"
+            aria-label={open ? "Đóng menu" : "Mở menu"}
+            aria-expanded={open}
+          >
+            {open ? <X className="h-5 w-5" aria-hidden="true" /> : <Menu className="h-5 w-5" aria-hidden="true" />}
+          </button>
+        </div>
       </nav>
 
       {open ? (

@@ -136,7 +136,7 @@ export function HomeTabs() {
         <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="text-xs font-black uppercase text-blue-600 dark:text-blue-300">Gợi ý học nhanh</p>
-            <h2 className="mt-1 text-2xl font-black text-slate-950 dark:text-white">Từ vựng nổi bật</h2>
+            <h2 className="mt-1 text-2xl font-black text-slate-950 dark:text-white">Từ vựng chủ đề</h2>
           </div>
           <Button asChild className="w-full rounded-full sm:w-auto">
             <Link href="/khoa-hoc/tu-vung">Xem tất cả từ vựng</Link>
