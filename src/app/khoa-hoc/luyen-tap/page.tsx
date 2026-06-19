@@ -6,16 +6,13 @@ import { Award, Brain, ImageIcon, Loader2, RotateCcw, Sparkles, Tags } from "luc
 import { Button } from "@/components/ui/button";
 import { SafeVideo } from "@/components/ui/safe-video";
 import { Card, CardContent } from "@/components/ui/card";
-import { alphabetSignData } from "@/data/alphabetSignData";
 import { vocabularyCourseData } from "@/data/vocabularyCourseData";
 import { normalizeVocabularyTopic, vocabularyCourseTopics } from "@/data/vocabularyCourseTopics";
-import { readLearningState, getCurrentUserId } from "@/lib/authLearning";
+import { getCurrentUserId, readLearningState } from "@/lib/authLearning";
 import { readPracticeStats, savePracticeAttempt, type PracticeStats } from "@/lib/practiceStats";
-import { getProgressDisplayInfo } from "@/lib/progressDisplay";
 import { createClient, hasSupabaseEnv } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import { normalizeVietnameseText } from "@/lib/vietnameseText";
-import { normalizeLetterKey } from "@/lib/videoUtils";
 
 type Mode = "quick" | "topic";
 type MediaKind = "video" | "gif" | "image";
@@ -47,56 +44,26 @@ function uniqueStrings(items: string[]) {
   return Array.from(new Set(items.map((item) => item.trim()).filter(Boolean)));
 }
 
-function getMedia(video?: string | null, gif?: string | null, thumbnail?: string | null, boardImage?: string | null) {
-  if (video) return { mediaUrl: video, mediaKind: "video" as const };
-  if (gif) return { mediaUrl: gif, mediaKind: "gif" as const };
-  if (thumbnail) return { mediaUrl: thumbnail, mediaKind: "image" as const };
-  if (boardImage) return { mediaUrl: boardImage, mediaKind: "image" as const };
+function getMedia(...sources: Array<{ url?: string | null; kind: MediaKind }>) {
+  for (const source of sources) {
+    const url = source.url?.trim();
+    if (url) return { mediaUrl: url, mediaKind: source.kind };
+  }
   return {};
 }
 
-function getLocalIds(key: string) {
-  if (typeof window === "undefined") return [];
-  try {
-    const parsed = JSON.parse(window.localStorage.getItem(key) ?? "[]") as unknown;
-    if (!Array.isArray(parsed)) return [];
-    return parsed
-      .map((item) => {
-        if (typeof item === "string") return item;
-        if (item && typeof item === "object") {
-          const record = item as Record<string, unknown>;
-          return String(record.id ?? record.itemId ?? record.word_key ?? record.wordKey ?? record.label ?? "");
-        }
-        return "";
-      })
-      .filter(Boolean);
-  } catch {
-    return [];
-  }
-}
-
 function makeStaticVocabularyItems(): PracticeItem[] {
-  return vocabularyCourseData.map((item) => {
-    const media = getMedia(item.video_url, item.gif_url, item.thumbnail_url);
-    return {
-      id: item.id,
-      keys: [item.id, item.word_key, normalizeVietnameseText(item.word), item.word].filter(Boolean),
-      word: item.word,
-      category: normalizeVocabularyTopic(item.category),
-      description: item.simple_explanation || item.description,
-      ...media,
-    };
-  });
-}
-
-function makeStaticAlphabetItems(): PracticeItem[] {
-  return alphabetSignData.map((item) => ({
-    id: item.letter_key,
-    keys: [item.id, item.letter_key, `alphabet-${item.letter_key}`, item.label, item.display_label].filter(Boolean),
-    word: item.display_label || item.label,
-    category: item.type === "tone_mark" ? "Dấu thanh" : "Bảng chữ cái",
-    description: item.shortDescription || item.description,
-    ...getMedia(null, null, null, item.image),
+  return vocabularyCourseData.map((item) => ({
+    id: item.id,
+    keys: [item.id, item.word_key, normalizeVietnameseText(item.word), item.word].filter(Boolean),
+    word: item.word,
+    category: normalizeVocabularyTopic(item.category),
+    description: item.simple_explanation || item.description,
+    ...getMedia(
+      { url: item.video_url, kind: "video" },
+      { url: item.gif_url, kind: "gif" },
+      { url: item.thumbnail_url, kind: "image" },
+    ),
   }));
 }
 
@@ -105,9 +72,9 @@ function hasAnyKey(item: PracticeItem, ids: string[]) {
   return item.keys.some((key) => normalizedIds.has(key) || normalizedIds.has(normalizeVietnameseText(key)));
 }
 
-function makeQuestions(source: PracticeItem[], count: number): QuizQuestion[] {
+function makeQuestions(source: PracticeItem[], count: number, distractorSource: PracticeItem[]): QuizQuestion[] {
   const selected = shuffle(source).slice(0, count);
-  const allLabels = uniqueStrings(source.map((item) => item.word));
+  const allLabels = uniqueStrings(distractorSource.map((item) => item.word));
 
   return selected.map((item) => {
     const distractors = shuffle(allLabels.filter((label) => label !== item.word)).slice(0, 3);
@@ -127,7 +94,7 @@ function MediaQuestion({ item }: { item: PracticeItem }) {
   if (item.mediaUrl && item.mediaKind === "video") {
     return (
       <div className="flex h-[220px] w-full items-center justify-center overflow-hidden rounded-[1.5rem] bg-slate-950 sm:h-[300px]">
-        <SafeVideo src={item.mediaUrl} controls preload="auto" playsInline className="h-full w-full object-contain" />
+        <SafeVideo src={item.mediaUrl} controls preload="metadata" playsInline className="h-full w-full object-contain" />
       </div>
     );
   }
@@ -178,7 +145,7 @@ export default function PracticePage() {
     void loadLearningOwnerState();
 
     async function loadPracticeItems() {
-      const fallbackItems = [...makeStaticVocabularyItems(), ...makeStaticAlphabetItems()];
+      const fallbackItems = makeStaticVocabularyItems();
       if (!hasSupabaseEnv()) {
         setAllItems(fallbackItems);
         setLoading(false);
@@ -187,19 +154,13 @@ export default function PracticePage() {
 
       try {
         const supabase = createClient();
-        const [{ data: words, error: wordError }, { data: alphabetRows, error: alphabetError }] = await Promise.all([
-          supabase
-            .from("dictionary_words")
-            .select("id, word_key, word, normalized_word, category, description, simple_explanation, video_url, gif_url, thumbnail_url")
-            .in("status", ["published", "active"]),
-          supabase
-            .from("alphabet_media")
-            .select("id, letter_key, label, display_label, type, title, description, explanation, video_url, gif_url, thumbnail_url, board_image_url, status, updated_at")
-            .eq("status", "published"),
-        ]);
+        const { data: words, error } = await supabase
+          .from("dictionary_words")
+          .select("id, word_key, word, normalized_word, category, description, simple_explanation, video_url, gif_url, thumbnail_url")
+          .in("status", ["published", "active"])
+          .order("updated_at", { ascending: false });
 
-        if (wordError) throw wordError;
-        if (alphabetError) throw alphabetError;
+        if (error) throw error;
 
         const wordItems: PracticeItem[] = (words ?? []).map((row: any) => ({
           id: String(row.id),
@@ -207,26 +168,14 @@ export default function PracticePage() {
           word: String(row.word ?? ""),
           category: normalizeVocabularyTopic(String(row.category ?? "Từ vựng")),
           description: String(row.simple_explanation ?? row.description ?? ""),
-          ...getMedia(row.video_url, row.gif_url, row.thumbnail_url),
+          ...getMedia(
+            { url: row.video_url, kind: "video" },
+            { url: row.gif_url, kind: "gif" },
+            { url: row.thumbnail_url, kind: "image" },
+          ),
         }));
 
-        const alphabetItems: PracticeItem[] = (alphabetRows ?? []).map((row: any) => {
-          const normalizedKey = normalizeLetterKey(String(row.letter_key ?? ""));
-          const label = String(row.display_label ?? row.label ?? row.letter_key ?? "");
-          const boardImageUrl = row.board_image_url
-            ? `${row.board_image_url}?t=${row.updated_at ? new Date(row.updated_at).getTime() : Date.now()}`
-            : null;
-          return {
-            id: normalizedKey,
-            keys: [row.id, normalizedKey, `alphabet-${normalizedKey}`, row.label, row.display_label].filter(Boolean).map(String),
-            word: label,
-            category: row.type === "tone_mark" ? "Dấu thanh" : "Bảng chữ cái",
-            description: String(row.description ?? row.explanation ?? row.title ?? ""),
-            ...getMedia(row.video_url, row.gif_url, row.thumbnail_url, boardImageUrl),
-          };
-        });
-
-        setAllItems([...wordItems, ...alphabetItems, ...fallbackItems]);
+        setAllItems(wordItems.length ? wordItems : fallbackItems);
       } catch (error) {
         if (process.env.NODE_ENV === "development") {
           console.warn("Practice data fallback:", error);
@@ -243,21 +192,28 @@ export default function PracticePage() {
   const mediaItems = useMemo(() => {
     const seen = new Set<string>();
     return allItems.filter((item) => {
-      if (!item.word || !item.mediaUrl || seen.has(item.word)) return false;
-      seen.add(item.word);
+      const normalizedWord = normalizeVietnameseText(item.word);
+      if (!item.word || !item.mediaUrl || seen.has(normalizedWord)) return false;
+      seen.add(normalizedWord);
       return true;
     });
   }, [allItems]);
 
-  const quickItems = useMemo(() => mediaItems.filter((item) => hasAnyKey(item, learnedIds)), [learnedIds, mediaItems]);
-  const topicItems = useMemo(() => mediaItems.filter((item) => item.category === selectedTopic), [mediaItems, selectedTopic]);
+  const vocabularyMediaItems = useMemo(() => mediaItems.filter((item) => topicOptions.includes(item.category)), [mediaItems]);
+  const quickItems = useMemo(() => {
+    const learnedItems = vocabularyMediaItems.filter((item) => hasAnyKey(item, learnedIds));
+    const learnedKeys = new Set(learnedItems.map((item) => item.id));
+    return [...learnedItems, ...vocabularyMediaItems.filter((item) => !learnedKeys.has(item.id))];
+  }, [learnedIds, vocabularyMediaItems]);
+  const topicItems = useMemo(() => vocabularyMediaItems.filter((item) => item.category === selectedTopic), [selectedTopic, vocabularyMediaItems]);
   const eligibleItems = mode === "quick" ? quickItems : topicItems;
-  const availableCounts = questionCounts.filter((count) => eligibleItems.length >= count);
+  const enoughAnswerChoices = vocabularyMediaItems.length >= 4;
+  const availableCounts = questionCounts.filter((count) => enoughAnswerChoices && (count === 10 ? eligibleItems.length >= 4 : eligibleItems.length >= count));
   const currentQuestion = questions[questionIndex];
 
   useEffect(() => {
     if (availableCounts.length && !availableCounts.includes(questionCount)) {
-      setQuestionCount(availableCounts[0]);
+      setQuestionCount(availableCounts[availableCounts.length - 1]);
     }
   }, [availableCounts, questionCount]);
 
@@ -270,7 +226,8 @@ export default function PracticePage() {
   }
 
   function startQuiz() {
-    const nextQuestions = makeQuestions(eligibleItems, questionCount);
+    const nextQuestionCount = Math.min(questionCount, eligibleItems.length);
+    const nextQuestions = makeQuestions(eligibleItems, nextQuestionCount, vocabularyMediaItems);
     if (!isQuizValid(nextQuestions)) return;
     setQuestions(nextQuestions);
     setQuestionIndex(0);
@@ -288,13 +245,16 @@ export default function PracticePage() {
   function nextQuestion() {
     if (questionIndex >= questions.length - 1) {
       const finalScore = score + (selectedAnswer === currentQuestion.answer ? 0 : 0);
-      const nextStats = savePracticeAttempt({
-        score: finalScore,
-        total: questions.length,
-        mode: mode === "quick" ? "Trắc nghiệm nhanh" : "Ôn theo chủ đề",
-        topic: mode === "topic" ? selectedTopic : undefined,
-        practicedAt: new Date().toISOString(),
-      }, learningUserId);
+      const nextStats = savePracticeAttempt(
+        {
+          score: finalScore,
+          total: questions.length,
+          mode: mode === "quick" ? "Trắc nghiệm nhanh" : "Ôn theo chủ đề",
+          topic: mode === "topic" ? selectedTopic : undefined,
+          practicedAt: new Date().toISOString(),
+        },
+        learningUserId,
+      );
       setStats(nextStats);
       setFinished(true);
       return;
@@ -304,14 +264,18 @@ export default function PracticePage() {
   }
 
   const modes = [
-    { id: "quick" as const, title: "Trắc nghiệm nhanh", description: "Tạo bài quiz từ các mục bạn đã đánh dấu là đã học.", icon: Brain },
+    { id: "quick" as const, title: "Trắc nghiệm nhanh", description: "Tạo bài quiz từ các mục từ vựng đã có video hoặc hình minh họa.", icon: Brain },
     { id: "topic" as const, title: "Ôn theo chủ đề", description: "Chọn một chủ đề và luyện nhận diện ký hiệu bằng hình ảnh hoặc video.", icon: Tags },
   ];
 
   const emptyMessage =
-    mode === "quick"
-      ? "Bạn cần học thêm các mục có video hoặc hình minh họa để bắt đầu trắc nghiệm."
-      : "Chủ đề này chưa có đủ video hoặc hình minh họa để luyện tập.";
+    !enoughAnswerChoices
+      ? "Cần ít nhất 4 mục từ vựng có video hoặc hình minh họa để tạo đáp án trắc nghiệm."
+      : mode === "quick"
+        ? "Chưa có mục từ vựng nào có video hoặc hình minh họa để luyện tập."
+        : topicItems.length > 0
+          ? `Chủ đề này có ${topicItems.length} mục có minh họa, nhưng cần ít nhất 4 mục để bắt đầu quiz.`
+          : "Chủ đề này chưa có video hoặc hình minh họa để luyện tập.";
 
   return (
     <main className="flex-1 bg-gradient-to-b from-blue-50 via-white to-white px-4 py-8 text-slate-950 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900 dark:text-slate-50 sm:px-6 lg:px-8">
@@ -366,9 +330,15 @@ export default function PracticePage() {
                   Kết quả đã cập nhật vào hồ sơ. Tổng lượt luyện tập: {stats.totalSessions}
                 </p>
                 <div className="flex flex-col justify-center gap-2 sm:flex-row">
-                  <Button onClick={startQuiz} className="rounded-full"><RotateCcw className="h-4 w-4" /> Luyện lại</Button>
-                  <Button asChild variant="outline" className="rounded-full"><Link href="/ho-so">Về Hồ sơ</Link></Button>
-                  <Button asChild variant="outline" className="rounded-full"><Link href="/khoa-hoc/tu-vung">Xem Từ vựng</Link></Button>
+                  <Button onClick={startQuiz} className="rounded-full">
+                    <RotateCcw className="h-4 w-4" /> Luyện lại
+                  </Button>
+                  <Button asChild variant="outline" className="rounded-full">
+                    <Link href="/ho-so">Về Hồ sơ</Link>
+                  </Button>
+                  <Button asChild variant="outline" className="rounded-full">
+                    <Link href="/khoa-hoc/tu-vung">Xem Từ vựng</Link>
+                  </Button>
                 </div>
               </div>
             ) : currentQuestion ? (
@@ -439,7 +409,7 @@ export default function PracticePage() {
                   <h2 className="font-black text-slate-950 dark:text-white">Chọn số câu</h2>
                   <div className="mt-3 grid gap-2 sm:grid-cols-3">
                     {questionCounts.map((count) => {
-                      const disabled = eligibleItems.length < count;
+                      const disabled = !enoughAnswerChoices || (count === 10 ? eligibleItems.length < 4 : eligibleItems.length < count);
                       return (
                         <button
                           key={count}
@@ -459,8 +429,13 @@ export default function PracticePage() {
                     })}
                   </div>
                   <p className="mt-2 text-sm font-semibold text-slate-500 dark:text-slate-300">
-                    Có {eligibleItems.length} mục đủ video hoặc hình minh họa cho chế độ này.
+                    Có {eligibleItems.length} mục có video hoặc hình minh họa cho chế độ này.
                   </p>
+                  {mode === "topic" && topicItems.length > 0 && topicItems.length < 4 ? (
+                    <p className="mt-1 text-sm font-semibold text-orange-700 dark:text-orange-200">
+                      Chủ đề này có minh họa, nhưng cần ít nhất 4 mục để tạo đáp án trắc nghiệm.
+                    </p>
+                  ) : null}
                 </div>
 
                 {availableCounts.length ? (
