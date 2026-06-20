@@ -93,15 +93,22 @@ function isQuizValid(questions: QuizQuestion[]) {
 function MediaQuestion({ item }: { item: PracticeItem }) {
   if (item.mediaUrl && item.mediaKind === "video") {
     return (
-      <div className="flex h-[220px] w-full items-center justify-center overflow-hidden rounded-[1.5rem] bg-slate-950 sm:h-[300px]">
-        <SafeVideo src={item.mediaUrl} controls preload="metadata" playsInline className="h-full w-full object-contain" />
+      <div className="relative aspect-video w-full overflow-hidden rounded-[1.35rem] border border-slate-800/70 bg-slate-950 shadow-lg shadow-slate-950/10">
+        <SafeVideo
+          src={item.mediaUrl}
+          controls
+          preload="metadata"
+          playsInline
+          className="h-full w-full"
+          videoClassName="object-cover object-center"
+        />
       </div>
     );
   }
 
   if (item.mediaUrl) {
     return (
-      <div className="flex h-[220px] w-full items-center justify-center overflow-hidden rounded-[1.5rem] bg-blue-50 dark:bg-slate-800 sm:h-[300px]">
+      <div className="relative aspect-video w-full overflow-hidden rounded-[1.35rem] border border-blue-100 bg-blue-50 shadow-lg shadow-blue-100/30 dark:border-slate-700 dark:bg-slate-800 dark:shadow-none">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={item.mediaUrl} alt={`Minh họa ký hiệu cho ${item.word}`} className="h-full w-full object-contain" />
       </div>
@@ -109,7 +116,7 @@ function MediaQuestion({ item }: { item: PracticeItem }) {
   }
 
   return (
-    <div className="grid h-[220px] place-items-center rounded-[1.5rem] bg-blue-50 text-center text-blue-700 dark:bg-slate-800 dark:text-blue-100 sm:h-[300px]">
+    <div className="grid aspect-video w-full place-items-center rounded-[1.35rem] border border-blue-100 bg-blue-50 text-center text-blue-700 dark:border-slate-700 dark:bg-slate-800 dark:text-blue-100">
       <div className="grid place-items-center gap-2">
         <ImageIcon className="h-8 w-8" aria-hidden="true" />
         <p className="font-black">Chưa có minh họa phù hợp</p>
@@ -343,14 +350,14 @@ export default function PracticePage() {
               </div>
             ) : currentQuestion ? (
               <div className="grid gap-4">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <h2 className="text-xl font-black">{mode === "quick" ? "Trắc nghiệm nhanh" : selectedTopic}</h2>
-                  <span className="rounded-full bg-blue-50 px-3 py-1 text-sm font-black text-blue-700 dark:bg-blue-500/15 dark:text-blue-100">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h2 className="text-lg font-black sm:text-xl">{mode === "quick" ? "Trắc nghiệm nhanh" : selectedTopic}</h2>
+                  <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-black text-blue-700 dark:bg-blue-500/15 dark:text-blue-100 sm:text-sm">
                     Câu {questionIndex + 1}/{questions.length} · Điểm: {score}
                   </span>
                 </div>
                 <MediaQuestion item={currentQuestion.item} />
-                <div className="grid gap-2 sm:grid-cols-2">
+                <div className="grid gap-2 rounded-[1.35rem] border border-blue-100 bg-blue-50/60 p-2 dark:border-slate-700 dark:bg-slate-800/60 sm:grid-cols-2">
                   {currentQuestion.options.map((option, index) => {
                     const selected = selectedAnswer === option;
                     const isCorrect = Boolean(selectedAnswer) && option === currentQuestion.answer;
@@ -364,7 +371,7 @@ export default function PracticePage() {
                           "min-h-12 rounded-2xl border px-4 text-left font-bold transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100",
                           isCorrect && "border-emerald-300 bg-emerald-50 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-100",
                           isWrong && "border-orange-300 bg-orange-50 text-orange-900 dark:bg-orange-500/15 dark:text-orange-100",
-                          !isCorrect && !isWrong && "border-blue-100 bg-white hover:bg-blue-50 dark:border-slate-700 dark:bg-slate-800",
+                          !isCorrect && !isWrong && "border-blue-100 bg-white shadow-sm hover:bg-blue-50 dark:border-slate-700 dark:bg-slate-900",
                         )}
                       >
                         <span className="mr-2 text-blue-700 dark:text-blue-200">{String.fromCharCode(65 + index)}.</span>
@@ -378,9 +385,11 @@ export default function PracticePage() {
                     {selectedAnswer === currentQuestion.answer ? "Chính xác." : `Chưa đúng. Đáp án đúng là: ${currentQuestion.answer}.`}
                   </div>
                 ) : null}
-                <Button disabled={!selectedAnswer} onClick={nextQuestion} className="w-full rounded-full sm:w-fit">
-                  {questionIndex >= questions.length - 1 ? "Xem kết quả" : "Câu tiếp theo"}
-                </Button>
+                <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:justify-end">
+                  <Button disabled={!selectedAnswer} onClick={nextQuestion} className="w-full rounded-full sm:w-auto sm:min-w-[220px]">
+                    {questionIndex >= questions.length - 1 ? "Xem kết quả" : "Câu tiếp theo"}
+                  </Button>
+                </div>
               </div>
             ) : (
               <div className="grid gap-5">

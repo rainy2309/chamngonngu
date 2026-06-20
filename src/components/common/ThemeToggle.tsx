@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { Moon, Sun } from "lucide-react";
 
 const storageKey = "cham_theme";
+const themeChangingClass = "theme-changing";
 
 function getInitialTheme() {
   if (typeof window === "undefined") return "light";
@@ -19,27 +20,30 @@ export function ThemeToggle() {
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const [mounted, setMounted] = useState(false);
 
+  function applyTheme(nextTheme: "light" | "dark", save = true) {
+    const root = document.documentElement;
+    root.classList.add(themeChangingClass);
+    root.classList.toggle("dark", nextTheme === "dark");
+    root.classList.toggle("light", nextTheme === "light");
+    if (save) window.localStorage.setItem(storageKey, nextTheme);
+
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => root.classList.remove(themeChangingClass));
+    });
+  }
+
   useEffect(() => {
     setMounted(true);
-    const nextTheme = getInitialTheme() as "light" | "dark";
-    setTheme(nextTheme);
 
     if (isAdmin) {
-      document.documentElement.classList.remove("dark");
-      document.documentElement.classList.add("light");
+      applyTheme("light", false);
       return;
     }
 
-    document.documentElement.classList.toggle("dark", nextTheme === "dark");
-    document.documentElement.classList.toggle("light", nextTheme === "light");
+    const nextTheme = getInitialTheme() as "light" | "dark";
+    setTheme(nextTheme);
+    applyTheme(nextTheme, false);
   }, [isAdmin]);
-
-  useEffect(() => {
-    if (!mounted || isAdmin) return;
-    document.documentElement.classList.toggle("dark", theme === "dark");
-    document.documentElement.classList.toggle("light", theme === "light");
-    window.localStorage.setItem(storageKey, theme);
-  }, [isAdmin, mounted, theme]);
 
   if (!mounted || isAdmin) return null;
 
@@ -48,7 +52,10 @@ export function ThemeToggle() {
   return (
     <button
       type="button"
-      onClick={() => setTheme(nextTheme)}
+      onClick={() => {
+        setTheme(nextTheme);
+        applyTheme(nextTheme);
+      }}
       className="fixed bottom-[calc(env(safe-area-inset-bottom)+1rem)] right-4 z-50 grid h-11 w-11 place-items-center rounded-full border border-blue-100 bg-white text-blue-700 shadow-xl shadow-blue-900/15 transition hover:-translate-y-0.5 hover:bg-blue-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-200 dark:border-slate-700 dark:bg-slate-900 dark:text-blue-200 dark:hover:bg-slate-800 sm:bottom-5 sm:left-5 sm:right-auto sm:h-12 sm:w-12"
       aria-label="Chuyển giao diện sáng/tối"
     >
