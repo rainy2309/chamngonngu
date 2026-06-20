@@ -48,9 +48,9 @@ type LocalLearningRecord = {
 };
 
 const defaultSteps = [
-  "Quan sát minh họa ký hiệu khi nhóm bổ sung dữ liệu.",
-  "Giữ tay trong khung nhìn rõ.",
-  "Thực hiện chậm và lặp lại 3-5 lần.",
+  "Quan sát video minh họa nếu có.",
+  "Thực hiện chậm và rõ ràng.",
+  "Lặp lại 3-5 lần để ghi nhớ.",
 ];
 
 function normalizeVocabularyCourseItem<T extends VocabularyCourseItem>(item: T): T {
@@ -157,14 +157,14 @@ function MediaPreview({ item }: { item: VocabularyCourseItem }) {
 
   if (item.video_url) {
     return (
-      <div className="flex h-[170px] w-full items-center justify-center overflow-hidden rounded-2xl bg-slate-950 sm:h-[200px] lg:h-[220px]">
+      <div className="relative aspect-video w-full overflow-hidden rounded-[1.5rem] border border-slate-700/60 bg-slate-950 shadow-lg shadow-slate-950/10">
         <SafeVideo
           src={item.video_url}
-          poster={item.thumbnail_url ?? undefined}
           controls
           preload="metadata"
           playsInline
-          className="h-full w-full object-contain"
+          className="h-full w-full"
+          videoClassName="object-cover object-center"
         />
       </div>
     );
@@ -172,24 +172,15 @@ function MediaPreview({ item }: { item: VocabularyCourseItem }) {
 
   if (item.gif_url && !failed) {
     return (
-      <div className="flex h-[170px] w-full items-center justify-center overflow-hidden rounded-2xl bg-blue-50 dark:bg-slate-800 sm:h-[200px] lg:h-[220px]">
+      <div className="relative aspect-video w-full overflow-hidden rounded-[1.5rem] border border-blue-100 bg-blue-50 dark:border-slate-700 dark:bg-slate-800">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={item.gif_url} alt={`GIF minh họa ${item.word}`} className="h-full w-full object-contain" onError={() => setFailed(true)} />
-      </div>
-    );
-  }
-
-  if (item.thumbnail_url && !failed) {
-    return (
-      <div className="flex h-[170px] w-full items-center justify-center overflow-hidden rounded-2xl bg-blue-50 dark:bg-slate-800 sm:h-[200px] lg:h-[220px]">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={item.thumbnail_url} alt={`Ảnh minh họa ${item.word}`} className="h-full w-full object-contain" onError={() => setFailed(true)} />
+        <img src={item.gif_url} alt={`GIF minh họa ${item.word}`} className="h-full w-full object-cover object-center" onError={() => setFailed(true)} />
       </div>
     );
   }
 
   return (
-    <div className="flex h-[160px] w-full items-center justify-center rounded-2xl bg-blue-50 text-center text-sm font-black text-blue-700 dark:bg-slate-800 dark:text-blue-200 sm:h-[190px] lg:h-[210px]">
+    <div className="grid aspect-video w-full place-items-center rounded-[1.5rem] border border-blue-100 bg-blue-50 text-center text-sm font-black text-blue-700 dark:border-slate-700 dark:bg-slate-800 dark:text-blue-200">
       <div className="grid place-items-center gap-1.5">
         <ImageIcon className="h-7 w-7" aria-hidden="true" />
         Đang cập nhật minh họa
@@ -221,15 +212,20 @@ function VocabularyDetailModal({
     <Dialog.Root open={Boolean(item)} onOpenChange={(open) => !open && onClose()}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-50 bg-slate-950/45 backdrop-blur-sm" />
-        <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[calc(100vw-24px)] max-w-[900px] -translate-x-1/2 -translate-y-1/2 overflow-visible focus:outline-none">
+        <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[calc(100vw-24px)] max-w-6xl -translate-x-1/2 -translate-y-1/2 overflow-visible focus:outline-none">
           {item ? (
             <div className="relative overflow-visible">
               <ModalNavigation variant="desktop" open={Boolean(item)} currentIndex={currentIndex} total={total} onPrevious={onPrevious} onNext={onNext} />
-              <div className="scrollbar-hide max-h-[86vh] overflow-y-auto rounded-[1.35rem] border border-blue-100 bg-white p-4 shadow-2xl focus:outline-none focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-900 sm:p-5">
+              <div className="scrollbar-hide max-h-[90vh] overflow-y-auto rounded-[1.35rem] border border-blue-100 bg-white p-4 shadow-2xl focus:outline-none focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-900 sm:p-5">
             <div className="relative grid gap-4">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="w-fit rounded-full bg-blue-50 px-3 py-1 text-xs font-black text-blue-700 dark:bg-blue-500/15 dark:text-blue-100">{item.category}</p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="w-fit rounded-full bg-blue-50 px-3 py-1 text-xs font-black text-blue-700 dark:bg-blue-500/15 dark:text-blue-100">{item.category}</p>
+                    <p className="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-600 dark:bg-slate-800 dark:text-slate-200">
+                      {currentIndex + 1}/{total}
+                    </p>
+                  </div>
                   <Dialog.Title className="mt-2 text-2xl font-black text-slate-950 dark:text-white sm:text-3xl">{item.word}</Dialog.Title>
                 </div>
                 <Dialog.Close asChild>
@@ -241,21 +237,18 @@ function VocabularyDetailModal({
 
               <ModalNavigation variant="mobile" enableKeyboard={false} open={Boolean(item)} currentIndex={currentIndex} total={total} onPrevious={onPrevious} onNext={onNext} />
 
-              <div className="grid gap-4 lg:grid-cols-[0.38fr_0.62fr] lg:items-start">
-                <MediaPreview item={item} />
-                <div className="grid gap-3">
-                  <section className="rounded-2xl bg-blue-50 p-3 dark:bg-blue-500/15">
-                    <h3 className="font-black text-slate-950 dark:text-white">Các bước học</h3>
-                    <ul className="mt-2 grid gap-2">
-                      {(item.sign_steps?.length ? item.sign_steps : defaultSteps).map((step) => (
-                        <li key={step} className="break-words rounded-2xl bg-white px-3 py-2 text-sm font-semibold leading-6 text-blue-900 dark:bg-slate-900/70 dark:text-blue-100">
-                          {step}
-                        </li>
-                      ))}
-                    </ul>
-                  </section>
-                </div>
-              </div>
+              <MediaPreview item={item} />
+
+              <section className="rounded-2xl bg-blue-50/80 p-3 dark:bg-blue-500/15">
+                <h3 className="text-sm font-black text-slate-950 dark:text-white">Các bước học</h3>
+                <ul className="mt-2 grid gap-2 sm:grid-cols-3">
+                  {(item.sign_steps?.length ? item.sign_steps : defaultSteps).map((step) => (
+                    <li key={step} className="break-words rounded-2xl bg-white px-3 py-2 text-sm font-semibold leading-6 text-blue-900 dark:bg-slate-900/70 dark:text-blue-100">
+                      {step}
+                    </li>
+                  ))}
+                </ul>
+              </section>
 
               <Link href={`/tu-dien?q=${encodeURIComponent(item.word)}`} className="w-fit rounded-full bg-blue-50 px-3 py-2 text-sm font-black text-blue-700 hover:bg-blue-100 dark:bg-blue-500/15 dark:text-blue-100">
                 Đóng góp hoặc bình luận trong Từ điển

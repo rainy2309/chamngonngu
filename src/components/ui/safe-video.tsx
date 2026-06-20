@@ -9,6 +9,7 @@ interface SafeVideoProps extends React.VideoHTMLAttributes<HTMLVideoElement> {
   src: string;
   poster?: string;
   fallbackText?: string;
+  videoClassName?: string;
 }
 
 export function SafeVideo({
@@ -16,6 +17,7 @@ export function SafeVideo({
   poster,
   fallbackText,
   className,
+  videoClassName,
   controls = true,
   preload = "metadata",
   playsInline = true,
@@ -96,7 +98,7 @@ export function SafeVideo({
         onPlaying={() => setIsLoading(false)}
         onSeeking={() => setIsLoading(true)}
         onSeeked={() => setIsLoading(false)}
-        className="h-full w-full object-contain"
+        className={cn("h-full w-full object-contain", videoClassName)}
         {...props}
       >
         {fallbackText || "Trình duyệt của bạn không hỗ trợ phát video."}
