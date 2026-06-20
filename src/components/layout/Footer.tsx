@@ -50,6 +50,9 @@ export function Footer() {
             <Link href="/dieu-khoan-su-dung" className="whitespace-nowrap text-blue-700 hover:text-blue-900 dark:text-blue-300 dark:hover:text-blue-100">
               Điều khoản sử dụng
             </Link>
+            <Link href="/gop-y" className="whitespace-nowrap text-blue-700 hover:text-blue-900 dark:text-blue-300 dark:hover:text-blue-100">
+              Góp ý website
+            </Link>
           </div>
         </div>
 

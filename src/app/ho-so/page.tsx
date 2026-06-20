@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import * as Dialog from "@radix-ui/react-dialog";
-import { ArrowRight, Award, CheckCircle2, KeyRound, Save, Search, Sparkles, X } from "lucide-react";
+import { ArrowRight, Award, CheckCircle2, KeyRound, MessageSquareHeart, Save, Search, Sparkles, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -526,6 +526,23 @@ export default function ProfilePage() {
             </Card>
           </div>
         </section>
+
+        <Card className="rounded-[1.5rem] border-blue-100 bg-white shadow-xl shadow-blue-100/50 dark:border-slate-700 dark:bg-slate-900 dark:shadow-none sm:rounded-[2rem]">
+          <CardContent className="grid gap-4 p-5 sm:grid-cols-[auto_1fr_auto] sm:items-center sm:p-6">
+            <div className="grid h-12 w-12 place-items-center rounded-2xl bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-200">
+              <MessageSquareHeart className="h-6 w-6" aria-hidden="true" />
+            </div>
+            <div>
+              <h2 className="text-xl font-black text-slate-950 dark:text-white">Góp ý cho CHẠM</h2>
+              <p className="mt-1 text-sm font-semibold leading-6 text-slate-600 dark:text-slate-300">
+                Bạn có thể báo lỗi, góp ý giao diện, nội dung từ vựng hoặc đề xuất tính năng mới.
+              </p>
+            </div>
+            <Button asChild className="w-full rounded-full sm:w-auto">
+              <Link href="/gop-y">Gửi góp ý</Link>
+            </Button>
+          </CardContent>
+        </Card>
 
         <Card className="rounded-[1.5rem] border-blue-100 shadow-xl shadow-blue-100/60 sm:rounded-[2rem]">
           <CardHeader>
