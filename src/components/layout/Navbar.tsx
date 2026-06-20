@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { BookOpen, ChevronDown, Home, Menu, Search, Users, X } from "lucide-react";
+import { BookOpen, ChevronDown, Home, Menu, MessageSquareHeart, Search, Users, X } from "lucide-react";
 import { AuthNav } from "@/components/auth/AuthNav";
 import { ChamLogo } from "@/components/common/ChamLogo";
 
@@ -165,6 +165,16 @@ export function Navbar() {
             >
               <Users className="h-4 w-4 shrink-0" aria-hidden="true" />
               Cộng đồng
+            </Link>
+            <Link
+              href="/gop-y"
+              onClick={closeMenu}
+              className={`flex min-h-12 items-center gap-3 whitespace-nowrap rounded-2xl px-4 text-sm font-black ${
+                pathname.startsWith("/gop-y") ? "bg-blue-600 text-white" : "bg-blue-50 text-blue-800 dark:bg-slate-800 dark:text-blue-100"
+              }`}
+            >
+              <MessageSquareHeart className="h-4 w-4 shrink-0" aria-hidden="true" />
+              Góp ý
             </Link>
           </div>
 
